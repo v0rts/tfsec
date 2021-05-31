@@ -14,13 +14,15 @@ import (
 // https://github.com/tfsec/tfsec#included-checks for check info
 const AWSUnenforcedHTTPSElasticsearchDomainEndpoint scanner.RuleCode = "AWS033"
 const AWSUnenforcedHTTPSElasticsearchDomainEndpointDescription scanner.RuleSummary = "Elasticsearch doesn't enforce HTTPS traffic."
+const AWSUnenforcedHTTPSElasticsearchDomainEndpointImpact = "HTTP traffic can be intercepted and the contents read"
+const AWSUnenforcedHTTPSElasticsearchDomainEndpointResolution = "Enforce the use of HTTPS for ElasticSearch"
 const AWSUnenforcedHTTPSElasticsearchDomainEndpointExplanation = `
 Plain HTTP is unencrypted and human-readable. This means that if a malicious actor was to eavesdrop on your connection, they would be able to see all of your data flowing back and forth.
 
 You should use HTTPS, which is HTTP over an encrypted (TLS) connection, meaning eavesdroppers cannot read your traffic.
 `
 const AWSUnenforcedHTTPSElasticsearchDomainEndpointBadExample = `
-resource "aws_elasticsearch_domain" "my_elasticsearch_domain" {
+resource "aws_elasticsearch_domain" "bad_example" {
   domain_name = "domain-foo"
 
   domain_endpoint_options {
@@ -29,7 +31,7 @@ resource "aws_elasticsearch_domain" "my_elasticsearch_domain" {
 }
 `
 const AWSUnenforcedHTTPSElasticsearchDomainEndpointGoodExample = `
-resource "aws_elasticsearch_domain" "my_elasticsearch_domain" {
+resource "aws_elasticsearch_domain" "good_example" {
   domain_name = "domain-foo"
 
   domain_endpoint_options {
@@ -43,10 +45,15 @@ func init() {
 		Code: AWSUnenforcedHTTPSElasticsearchDomainEndpoint,
 		Documentation: scanner.CheckDocumentation{
 			Summary:     AWSUnenforcedHTTPSElasticsearchDomainEndpointDescription,
+			Impact:      AWSUnenforcedHTTPSElasticsearchDomainEndpointImpact,
+			Resolution:  AWSUnenforcedHTTPSElasticsearchDomainEndpointResolution,
 			Explanation: AWSUnenforcedHTTPSElasticsearchDomainEndpointExplanation,
 			BadExample:  AWSUnenforcedHTTPSElasticsearchDomainEndpointBadExample,
 			GoodExample: AWSUnenforcedHTTPSElasticsearchDomainEndpointGoodExample,
-			Links:       []string{},
+			Links: []string{
+				"https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/elasticsearch_domain#enforce_https",
+				"https://docs.aws.amazon.com/elasticsearch-service/latest/developerguide/es-data-protection.html",
+			},
 		},
 		Provider:       scanner.AWSProvider,
 		RequiredTypes:  []string{"resource"},

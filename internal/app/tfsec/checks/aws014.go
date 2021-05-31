@@ -12,18 +12,20 @@ import (
 
 const AWSLaunchConfigurationWithUnencryptedBlockDevice scanner.RuleCode = "AWS014"
 const AWSLaunchConfigurationWithUnencryptedBlockDeviceDescription scanner.RuleSummary = "Launch configuration with unencrypted block device."
+const AWSLaunchConfigurationWithUnencryptedBlockDeviceImpact = "The block device is could be compromised and read from"
+const AWSLaunchConfigurationWithUnencryptedBlockDeviceResolution = "Turn on encryption for all block devices"
 const AWSLaunchConfigurationWithUnencryptedBlockDeviceExplanation = `
 Blocks devices should be encrypted to ensure sensitive data is hel securely at rest.
 `
 const AWSLaunchConfigurationWithUnencryptedBlockDeviceBadExample = `
-resource "aws_launch_configuration" "my-launch-config" {
+resource "aws_launch_configuration" "bad_example" {
 	root_block_device {
 		encrypted = false
 	}
 }
 `
 const AWSLaunchConfigurationWithUnencryptedBlockDeviceGoodExample = `
-resource "aws_launch_configuration" "my-launch-config" {
+resource "aws_launch_configuration" "good_example" {
 	root_block_device {
 		encrypted = true
 	}
@@ -35,10 +37,15 @@ func init() {
 		Code: AWSLaunchConfigurationWithUnencryptedBlockDevice,
 		Documentation: scanner.CheckDocumentation{
 			Summary:     AWSLaunchConfigurationWithUnencryptedBlockDeviceDescription,
+			Impact:      AWSLaunchConfigurationWithUnencryptedBlockDeviceImpact,
+			Resolution:  AWSLaunchConfigurationWithUnencryptedBlockDeviceResolution,
 			Explanation: AWSLaunchConfigurationWithUnencryptedBlockDeviceExplanation,
 			BadExample:  AWSLaunchConfigurationWithUnencryptedBlockDeviceBadExample,
 			GoodExample: AWSLaunchConfigurationWithUnencryptedBlockDeviceGoodExample,
-			Links:       []string{},
+			Links: []string{
+				"https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/instance#ebs-ephemeral-and-root-block-devices",
+				"https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/RootDeviceStorage.html",
+			},
 		},
 		Provider:       scanner.AWSProvider,
 		RequiredTypes:  []string{"resource"},

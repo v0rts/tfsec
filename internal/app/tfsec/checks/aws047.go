@@ -3,8 +3,9 @@ package checks
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/zclconf/go-cty/cty"
 	"strings"
+
+	"github.com/zclconf/go-cty/cty"
 
 	"github.com/tfsec/tfsec/internal/app/tfsec/parser"
 	"github.com/tfsec/tfsec/internal/app/tfsec/scanner"
@@ -12,13 +13,15 @@ import (
 
 const AWSSqsPolicyWildcardActions scanner.RuleCode = "AWS047"
 const AWSSqsPolicyWildcardActionsDescription scanner.RuleSummary = "AWS SQS policy document has wildcard action statement."
+const AWSSqsPolicyWildcardActionsImpact = "SQS policies with wildcard actions allow more that is required"
+const AWSSqsPolicyWildcardActionsResolution = "Keep policy scope to the minimum that is required to be effective"
 const AWSSqsPolicyWildcardActionsExplanation = `
 SQS Policy actions should always be restricted to a specific set.
 
 This ensures that the queue itself cannot be modified or deleted, and prevents possible future additions to queue actions to be implicitly allowed.
 `
 const AWSSqsPolicyWildcardActionsBadExample = `
-resource "aws_sqs_queue_policy" "test" {
+resource "aws_sqs_queue_policy" "bad_example" {
   queue_url = aws_sqs_queue.q.id
 
   policy = <<POLICY
@@ -35,7 +38,7 @@ POLICY
 }
 `
 const AWSSqsPolicyWildcardActionsGoodExample = `
-resource "aws_sqs_queue_policy" "test" {
+resource "aws_sqs_queue_policy" "good_example" {
   queue_url = aws_sqs_queue.q.id
 
   policy = <<POLICY
@@ -57,6 +60,8 @@ func init() {
 		Code: AWSSqsPolicyWildcardActions,
 		Documentation: scanner.CheckDocumentation{
 			Summary:     AWSSqsPolicyWildcardActionsDescription,
+			Impact:      AWSSqsPolicyWildcardActionsImpact,
+			Resolution:  AWSSqsPolicyWildcardActionsResolution,
 			Explanation: AWSSqsPolicyWildcardActionsExplanation,
 			BadExample:  AWSSqsPolicyWildcardActionsBadExample,
 			GoodExample: AWSSqsPolicyWildcardActionsGoodExample,

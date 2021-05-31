@@ -12,21 +12,22 @@ import (
 const (
 	AWSIAMPasswordExpiry            scanner.RuleCode    = "AWS038"
 	AWSIAMPasswordExpiryDescription scanner.RuleSummary = "IAM Password policy should have expiry less than or equal to 90 days."
-
-	AWSIAMPasswordExpiryExplanation = `
+	AWSIAMPasswordExpiryImpact                          = "Long life password increase the likelihood of a password eventually being compromised"
+	AWSIAMPasswordExpiryResolution                      = "Limit the password duration with an expiry in the policy"
+	AWSIAMPasswordExpiryExplanation                     = `
 IAM account password policies should have a maximum age specified. 
 
 The account password policy should be set to expire passwords after 90 days or less.
 `
 	AWSIAMPasswordExpiryBadExample = `
-resource "aws_iam_account_password_policy" "strict" {
+resource "aws_iam_account_password_policy" "bad_example" {
 	# ...
 	# max_password_age not set
 	# ...
 }
 `
 	AWSIAMPasswordExpiryGoodExample = `
-resource "aws_iam_account_password_policy" "strict" {
+resource "aws_iam_account_password_policy" "good_example" {
 	# ...
 	max_password_age = 90
 	# ...
@@ -39,6 +40,8 @@ func init() {
 		Code: AWSIAMPasswordExpiry,
 		Documentation: scanner.CheckDocumentation{
 			Summary:     AWSIAMPasswordExpiryDescription,
+			Impact:      AWSIAMPasswordExpiryImpact,
+			Resolution:  AWSIAMPasswordExpiryResolution,
 			Explanation: AWSIAMPasswordExpiryExplanation,
 			BadExample:  AWSIAMPasswordExpiryBadExample,
 			GoodExample: AWSIAMPasswordExpiryGoodExample,
@@ -63,9 +66,10 @@ func init() {
 				value, _ := attr.Value().AsBigFloat().Float64()
 				if value > 90 {
 					return []scanner.Result{
-						check.NewResult(
-							fmt.Sprintf("Resource '%s' has a max age set which is greater than 90 days.", block.FullName()),
-							block.Range(),
+						check.NewResultWithValueAnnotation(
+							fmt.Sprintf("Resource '%s' has high password age.", block.FullName()),
+							attr.Range(),
+							attr,
 							scanner.SeverityWarning,
 						),
 					}

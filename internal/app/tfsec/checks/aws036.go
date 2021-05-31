@@ -10,11 +10,13 @@ import (
 
 const AWSUnencryptedInTransitElasticacheReplicationGroup scanner.RuleCode = "AWS036"
 const AWSUnencryptedInTransitElasticacheReplicationGroupDescription scanner.RuleSummary = "Elasticache Replication Group uses unencrypted traffic."
+const AWSUnencryptedInTransitElasticacheReplicationGroupImpact = "In transit data in the Replication Group could be read if intercepted"
+const AWSUnencryptedInTransitElasticacheReplicationGroupResolution = "Enable in transit encryptuon for replication group"
 const AWSUnencryptedInTransitElasticacheReplicationGroupExplanation = `
 Traffic flowing between Elasticache replication nodes should be encrypted to ensure sensitive data is kept private.
 `
 const AWSUnencryptedInTransitElasticacheReplicationGroupBadExample = `
-resource "aws_elasticache_replication_group" "my-resource" {
+resource "aws_elasticache_replication_group" "bad_example" {
         replication_group_id = "foo"
         replication_group_description = "my foo cluster"
 
@@ -22,7 +24,7 @@ resource "aws_elasticache_replication_group" "my-resource" {
 }
 `
 const AWSUnencryptedInTransitElasticacheReplicationGroupGoodExample = `
-resource "aws_elasticache_replication_group" "my-resource" {
+resource "aws_elasticache_replication_group" "good_example" {
         replication_group_id = "foo"
         replication_group_description = "my foo cluster"
 
@@ -35,10 +37,15 @@ func init() {
 		Code: AWSUnencryptedInTransitElasticacheReplicationGroup,
 		Documentation: scanner.CheckDocumentation{
 			Summary:     AWSUnencryptedInTransitElasticacheReplicationGroupDescription,
+			Impact:      AWSUnencryptedInTransitElasticacheReplicationGroupImpact,
+			Resolution:  AWSUnencryptedInTransitElasticacheReplicationGroupResolution,
 			Explanation: AWSUnencryptedInTransitElasticacheReplicationGroupExplanation,
 			BadExample:  AWSUnencryptedInTransitElasticacheReplicationGroupBadExample,
 			GoodExample: AWSUnencryptedInTransitElasticacheReplicationGroupGoodExample,
-			Links:       []string{},
+			Links: []string{
+				"https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/elasticache_replication_group#transit_encryption_enabled",
+				"https://docs.aws.amazon.com/AmazonElastiCache/latest/red-ug/in-transit-encryption.html",
+			},
 		},
 		Provider:       scanner.AWSProvider,
 		RequiredTypes:  []string{"resource"},

@@ -12,11 +12,13 @@ import (
 
 const AWSUnencryptedElasticsearchDomain scanner.RuleCode = "AWS031"
 const AWSUnencryptedElasticsearchDomainDescription scanner.RuleSummary = "Elasticsearch domain isn't encrypted at rest."
+const AWSUnencryptedElasticsearchDomainImpact = "Data will be readable if compromised"
+const AWSUnencryptedElasticsearchDomainResolution = "Enable ElasticSearch domain encryption"
 const AWSUnencryptedElasticsearchDomainExplanation = `
 You should ensure your Elasticsearch data is encrypted at rest to help prevent sensitive information from being read by unauthorised users. 
 `
 const AWSUnencryptedElasticsearchDomainBadExample = `
-resource "aws_elasticsearch_domain" "my_elasticsearch_domain" {
+resource "aws_elasticsearch_domain" "bad_example" {
   domain_name = "domain-foo"
 
   encrypt_at_rest {
@@ -25,7 +27,7 @@ resource "aws_elasticsearch_domain" "my_elasticsearch_domain" {
 }
 `
 const AWSUnencryptedElasticsearchDomainGoodExample = `
-resource "aws_elasticsearch_domain" "my_elasticsearch_domain" {
+resource "aws_elasticsearch_domain" "good_example" {
   domain_name = "domain-foo"
 
   encrypt_at_rest {
@@ -39,10 +41,15 @@ func init() {
 		Code: AWSUnencryptedElasticsearchDomain,
 		Documentation: scanner.CheckDocumentation{
 			Summary:     AWSUnencryptedElasticsearchDomainDescription,
+			Impact:      AWSUnencryptedElasticsearchDomainImpact,
+			Resolution:  AWSUnencryptedElasticsearchDomainResolution,
 			Explanation: AWSUnencryptedElasticsearchDomainExplanation,
 			BadExample:  AWSUnencryptedElasticsearchDomainBadExample,
 			GoodExample: AWSUnencryptedElasticsearchDomainGoodExample,
-			Links:       []string{},
+			Links: []string{
+				"https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/elasticsearch_domain#encrypt_at_rest",
+				"https://docs.aws.amazon.com/elasticsearch-service/latest/developerguide/encryption-at-rest.html",
+			},
 		},
 		Provider:       scanner.AWSProvider,
 		RequiredTypes:  []string{"resource"},

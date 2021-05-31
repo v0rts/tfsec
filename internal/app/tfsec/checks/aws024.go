@@ -13,16 +13,18 @@ import (
 
 const AWSUnencryptedKinesisStream scanner.RuleCode = "AWS024"
 const AWSUnencryptedKinesisStreamDescription scanner.RuleSummary = "Kinesis stream is unencrypted."
+const AWSUnencryptedKinesisStreamImpact = "Intercepted data can be read in transit"
+const AWSUnencryptedKinesisStreamResolution = "Enable in transit encryption"
 const AWSUnencryptedKinesisStreamExplanation = `
 Kinesis streams should be encrypted to ensure sensitive data is kept private. Additionally, non-default KMS keys should be used so granularity of access control can be ensured.
 `
 const AWSUnencryptedKinesisStreamBadExample = `
-resource "aws_kinesis_stream" "test_stream" {
+resource "aws_kinesis_stream" "bad_example" {
 	encryption_type = "NONE"
 }
 `
 const AWSUnencryptedKinesisStreamGoodExample = `
-resource "aws_kinesis_stream" "test_stream" {
+resource "aws_kinesis_stream" "good_example" {
 	encryption_type = "KMS"
 	kms_key_id = "my/special/key"
 }
@@ -33,10 +35,15 @@ func init() {
 		Code: AWSUnencryptedKinesisStream,
 		Documentation: scanner.CheckDocumentation{
 			Summary:     AWSUnencryptedKinesisStreamDescription,
+			Impact:      AWSUnencryptedKinesisStreamImpact,
+			Resolution:  AWSUnencryptedKinesisStreamResolution,
 			Explanation: AWSUnencryptedKinesisStreamExplanation,
 			BadExample:  AWSUnencryptedKinesisStreamBadExample,
 			GoodExample: AWSUnencryptedKinesisStreamGoodExample,
-			Links:       []string{},
+			Links: []string{
+				"https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/kinesis_stream#encryption_type",
+				"https://docs.aws.amazon.com/streams/latest/dev/server-side-encryption.html",
+			},
 		},
 		Provider:       scanner.AWSProvider,
 		RequiredTypes:  []string{"resource"},
@@ -63,7 +70,7 @@ func init() {
 				}
 			} else {
 				keyIDAttr := block.GetAttribute("kms_key_id")
-				if keyIDAttr == nil || keyIDAttr.Value().AsString() == "" || keyIDAttr.Value().AsString() == "alias/aws/kinesis" {
+				if keyIDAttr == nil || keyIDAttr.IsEmpty() || keyIDAttr.Equals("alias/aws/kinesis") {
 					return []scanner.Result{
 						check.NewResult(
 							fmt.Sprintf("Resource '%s' defines a Kinesis Stream encrypted with the default Kinesis key.", block.FullName()),
@@ -73,7 +80,6 @@ func init() {
 					}
 				}
 			}
-
 			return nil
 		},
 	})

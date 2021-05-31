@@ -9,6 +9,8 @@ import (
 
 const AZURequireSecureTransferForStorageAccounts scanner.RuleCode = "AZU014"
 const AZURequireSecureTransferForStorageAccountsDescription scanner.RuleSummary = "Storage accounts should be configured to only accept transfers that are over secure connections"
+const AZURequireSecureTransferForStorageAccountsImpact = "Insecure transfer of data into secure accounts could be read if intercepted"
+const AZURequireSecureTransferForStorageAccountsResolution = "Only allow secure connection for transfering data into storage accounts"
 const AZURequireSecureTransferForStorageAccountsExplanation = `
 You can configure your storage account to accept requests from secure connections only by setting the Secure transfer required property for the storage account. 
 
@@ -17,7 +19,7 @@ When you require secure transfer, any requests originating from an insecure conn
 Microsoft recommends that you always require secure transfer for all of your storage accounts.
 `
 const AZURequireSecureTransferForStorageAccountsBadExample = `
-resource "azurerm_storage_account" "example" {
+resource "azurerm_storage_account" "bad_example" {
   name                      = "storageaccountname"
   resource_group_name       = azurerm_resource_group.example.name
   location                  = azurerm_resource_group.example.location
@@ -27,7 +29,7 @@ resource "azurerm_storage_account" "example" {
 }
 `
 const AZURequireSecureTransferForStorageAccountsGoodExample = `
-resource "azurerm_storage_account" "example" {
+resource "azurerm_storage_account" "good_example" {
   name                      = "storageaccountname"
   resource_group_name       = azurerm_resource_group.example.name
   location                  = azurerm_resource_group.example.location
@@ -42,6 +44,8 @@ func init() {
 		Code: AZURequireSecureTransferForStorageAccounts,
 		Documentation: scanner.CheckDocumentation{
 			Summary:     AZURequireSecureTransferForStorageAccountsDescription,
+			Impact:      AZURequireSecureTransferForStorageAccountsImpact,
+			Resolution:  AZURequireSecureTransferForStorageAccountsResolution,
 			Explanation: AZURequireSecureTransferForStorageAccountsExplanation,
 			BadExample:  AZURequireSecureTransferForStorageAccountsBadExample,
 			GoodExample: AZURequireSecureTransferForStorageAccountsGoodExample,

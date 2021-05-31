@@ -26,11 +26,13 @@ type checkstyleOutput struct {
 	Files   []checkstyleFile `xml:"file"`
 }
 
-func FormatCheckStyle(w io.Writer, results []scanner.Result, _ string) error {
+func FormatCheckStyle(w io.Writer, results []scanner.Result, _ string, options ...FormatterOption) error {
 
 	output := checkstyleOutput{}
 
 	files := make(map[string][]checkstyleResult)
+
+	// TODO - Handle if the --include-passed argument is passed.
 
 	for _, result := range results {
 		fileResults := append(

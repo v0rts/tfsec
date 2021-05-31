@@ -12,19 +12,20 @@ import (
 const (
 	AWSIAMPasswordRequiresSymbol            scanner.RuleCode    = "AWS040"
 	AWSIAMPasswordRequiresSymbolDescription scanner.RuleSummary = "IAM Password policy should have requirement for at least one symbol in the password."
-
-	AWSIAMPasswordRequiresSymbolExplanation = `
+	AWSIAMPasswordRequiresSymbolImpact                          = "Short, simple passwords are easier to compromise"
+	AWSIAMPasswordRequiresSymbolResolution                      = "Enforce longer, more complex passwords in the policy"
+	AWSIAMPasswordRequiresSymbolExplanation                     = `
 IAM account password policies should ensure that passwords content including a symbol.
 `
 	AWSIAMPasswordRequiresSymbolBadExample = `
-resource "aws_iam_account_password_policy" "strict" {
+resource "aws_iam_account_password_policy" "bad_example" {
 	# ...
 	# require_symbols not set
 	# ...
 }
 `
 	AWSIAMPasswordRequiresSymbolGoodExample = `
-resource "aws_iam_account_password_policy" "strict" {
+resource "aws_iam_account_password_policy" "good_example" {
 	# ...
 	require_symbols = true
 	# ...
@@ -37,6 +38,8 @@ func init() {
 		Code: AWSIAMPasswordRequiresSymbol,
 		Documentation: scanner.CheckDocumentation{
 			Summary:     AWSIAMPasswordRequiresSymbolDescription,
+			Impact:      AWSIAMPasswordRequiresSymbolImpact,
+			Resolution:  AWSIAMPasswordRequiresSymbolResolution,
 			Explanation: AWSIAMPasswordRequiresSymbolExplanation,
 			BadExample:  AWSIAMPasswordRequiresSymbolBadExample,
 			GoodExample: AWSIAMPasswordRequiresSymbolGoodExample,

@@ -9,16 +9,18 @@ import (
 
 const {{.CheckName}} scanner.RuleCode = "{{.Provider | ToUpper }}{{ .Code}}"
 const {{.CheckName}}Description scanner.RuleSummary = "{{.Summary}}"
+const {{.CheckName}}Impact = "{{.Impact}}"
+const {{.CheckName}}Resolution = "{{.Resolution}}"
 const {{.CheckName}}Explanation = ` + "`" + `
 
 ` + "`" + `
 const {{.CheckName}}BadExample = ` + "`" + `
-resource "" "my-" {
+resource "" "bad_example" {
 
 }
 ` + "`" + `
 const {{.CheckName}}GoodExample = ` + "`" + `
-resource "" "my-" {
+resource "" "good_example" {
 
 }
 ` + "`" + `
@@ -29,6 +31,8 @@ func init() {
 		Documentation: scanner.CheckDocumentation{
 			Summary:     {{.CheckName}}Description,
 			Explanation: {{.CheckName}}Explanation,
+			Impact:      {{.CheckName}}Impact,
+			Resolution:  {{.CheckName}}Resolution,
 			BadExample:  {{.CheckName}}BadExample,
 			GoodExample: {{.CheckName}}GoodExample,
 			Links: []string{

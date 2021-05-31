@@ -10,16 +10,18 @@ import (
 
 const AWSUnencryptedS3Bucket scanner.RuleCode = "AWS017"
 const AWSUnencryptedS3BucketDescription scanner.RuleSummary = "Unencrypted S3 bucket."
+const AWSUnencryptedS3BucketImpact = "The bucket objects could be read if compromised"
+const AWSUnencryptedS3BucketResolution = "Configure bucket encryption"
 const AWSUnencryptedS3BucketExplanation = `
 S3 Buckets should be encrypted with customer managed KMS keys and not default AWS managed keys, in order to allow granular control over access to specific buckets.
 `
 const AWSUnencryptedS3BucketBadExample = `
-resource "aws_s3_bucket" "my-bucket" {
+resource "aws_s3_bucket" "bad_example" {
   bucket = "mybucket"
 }
 `
 const AWSUnencryptedS3BucketGoodExample = `
-resource "aws_s3_bucket" "my-bucket" {
+resource "aws_s3_bucket" "good_example" {
   bucket = "mybucket"
 
   server_side_encryption_configuration {
@@ -38,18 +40,22 @@ func init() {
 		Code: AWSUnencryptedS3Bucket,
 		Documentation: scanner.CheckDocumentation{
 			Summary:     AWSUnencryptedS3BucketDescription,
+			Impact:      AWSUnencryptedS3BucketImpact,
+			Resolution:  AWSUnencryptedS3BucketResolution,
 			Explanation: AWSUnencryptedS3BucketExplanation,
 			BadExample:  AWSUnencryptedS3BucketBadExample,
 			GoodExample: AWSUnencryptedS3BucketGoodExample,
-			Links:       []string{},
+			Links: []string{
+				"https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket#enable-default-server-side-encryption",
+				"https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucket-encryption.html",
+			},
 		},
 		Provider:       scanner.AWSProvider,
 		RequiredTypes:  []string{"resource"},
 		RequiredLabels: []string{"aws_s3_bucket"},
 		CheckFunc: func(check *scanner.Check, block *parser.Block, context *scanner.Context) []scanner.Result {
 
-			encryptionBlock := block.GetBlock("server_side_encryption_configuration")
-			if encryptionBlock == nil {
+			if block.MissingChild("server_side_encryption_configuration") {
 				return []scanner.Result{
 					check.NewResult(
 						fmt.Sprintf("Resource '%s' defines an unencrypted S3 bucket (missing server_side_encryption_configuration block).", block.FullName()),
@@ -58,9 +64,8 @@ func init() {
 					),
 				}
 			}
-
-			ruleBlock := encryptionBlock.GetBlock("rule")
-			if ruleBlock == nil {
+			encryptionBlock := block.GetBlock("server_side_encryption_configuration")
+			if encryptionBlock.MissingChild("rule") {
 				return []scanner.Result{
 					check.NewResult(
 						fmt.Sprintf("Resource '%s' defines an unencrypted S3 bucket (missing rule block).", block.FullName()),
@@ -70,8 +75,9 @@ func init() {
 				}
 			}
 
-			applyBlock := ruleBlock.GetBlock("apply_server_side_encryption_by_default")
-			if applyBlock == nil {
+			ruleBlock := encryptionBlock.GetBlock("rule")
+
+			if ruleBlock.MissingChild("apply_server_side_encryption_by_default") {
 				return []scanner.Result{
 					check.NewResult(
 						fmt.Sprintf("Resource '%s' defines an unencrypted S3 bucket (missing apply_server_side_encryption_by_default block).", block.FullName()),
@@ -81,6 +87,7 @@ func init() {
 				}
 			}
 
+			applyBlock := ruleBlock.GetBlock("apply_server_side_encryption_by_default")
 			if sseAttr := applyBlock.GetAttribute("sse_algorithm"); sseAttr == nil {
 				return []scanner.Result{
 					check.NewResult(

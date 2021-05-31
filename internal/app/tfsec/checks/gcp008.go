@@ -13,13 +13,15 @@ import (
 // GkeLegacyAuthEnabled See https://github.com/tfsec/tfsec#included-checks for check info
 const GkeLegacyAuthEnabled scanner.RuleCode = "GCP008"
 const GkeLegacyAuthEnabledDescription scanner.RuleSummary = "Legacy client authentication methods utilized."
+const GkeLegacyAuthEnabledImpact = "Username and password authentication methods are less secure"
+const GkeLegacyAuthEnabledResolution = "Use service account or OAuth for authentication"
 const GkeLegacyAuthEnabledExplanation = `
 It is recommended to use Serivce Accounts and OAuth as authentication methods for accessing the master in the container cluster. 
 
 Basic authentication should be disabled by explicitly unsetting the <code>username</code> and <code>password</code> on the <code>master_auth</code> block.
 `
 const GkeLegacyAuthEnabledBadExample = `
-resource "google_container_cluster" "gke" {
+resource "google_container_cluster" "bad_example" {
 }
 
 resource "google_container_cluster" "gke" {
@@ -33,7 +35,7 @@ resource "google_container_cluster" "gke" {
 }
 `
 const GkeLegacyAuthEnabledGoodExample = `
-resource "google_container_cluster" "gke" {
+resource "google_container_cluster" "good_example" {
 	master_auth {
 	    username = ""
 	    password = ""
@@ -46,6 +48,8 @@ func init() {
 		Code: GkeLegacyAuthEnabled,
 		Documentation: scanner.CheckDocumentation{
 			Summary:     GkeLegacyAuthEnabledDescription,
+			Impact:      GkeLegacyAuthEnabledImpact,
+			Resolution:  GkeLegacyAuthEnabledResolution,
 			Explanation: GkeLegacyAuthEnabledExplanation,
 			BadExample:  GkeLegacyAuthEnabledBadExample,
 			GoodExample: GkeLegacyAuthEnabledGoodExample,

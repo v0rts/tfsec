@@ -13,22 +13,28 @@ import (
 // GkeNodeMetadataExposed See https://github.com/tfsec/tfsec#included-checks for check info
 const GkeNodeMetadataExposed scanner.RuleCode = "GCP006"
 const GkeNodeMetadataExposedDescription scanner.RuleSummary = "Node metadata value disables metadata concealment."
+const GkeNodeMetadataExposedImpact = "Metadata that isn't concealed potentially risks leakage of sensitive data"
+const GkeNodeMetadataExposedResolution = "Set node metadata to SECURE or GKE_METADATA_SERVER"
 const GkeNodeMetadataExposedExplanation = `
-If the <code>workflow_metadata_config</code> block is included the the <code>node_metadata</code> attribute is required. 
+If the <code>workload_metadata_config</code> block within <code>node_config</code> is included, the <code>node_metadata</code> attribute should be configured securely.
 
-The attribute should be set to <code>SPECIFIED</code> to ensure that the the VM metadata is not unnecessarily exposed to pods.
+The attribute should be set to <code>SECURE</code> to use metadata concealment, or <code>GKE_METADATA_SERVER</code> if workload identity is enabled. This ensures that the VM metadata is not unnecessarily exposed to pods.
 
 `
 const GkeNodeMetadataExposedBadExample = `
-resource "google_container_cluster" "gke" {
-	workload_metadata_config {
-		node_metadata = "EXPOSE"
+resource "google_container_node_pool" "bad_example" {
+	node_config {
+		workload_metadata_config {
+			node_metadata = "EXPOSE"
+		}
 	}
 }`
 const GkeNodeMetadataExposedGoodExample = `
-resource "google_container_cluster" "gke" {
-	workload_metadata_config {
-		node_metadata = "SPECIFIED"
+resource "google_container_node_pool" "good_example" {
+	node_config {
+		workload_metadata_config {
+			node_metadata = "SECURE"
+		}
 	}
 }`
 
@@ -37,6 +43,8 @@ func init() {
 		Code: GkeNodeMetadataExposed,
 		Documentation: scanner.CheckDocumentation{
 			Summary:     GkeNodeMetadataExposedDescription,
+			Impact:      GkeNodeMetadataExposedImpact,
+			Resolution:  GkeNodeMetadataExposedResolution,
 			Explanation: GkeNodeMetadataExposedExplanation,
 			BadExample:  GkeNodeMetadataExposedBadExample,
 			GoodExample: GkeNodeMetadataExposedGoodExample,
@@ -47,10 +55,10 @@ func init() {
 		},
 		Provider:       scanner.GCPProvider,
 		RequiredTypes:  []string{"resource"},
-		RequiredLabels: []string{"google_container_cluster"},
+		RequiredLabels: []string{"google_container_cluster", "google_container_node_pool"},
 		CheckFunc: func(check *scanner.Check, block *parser.Block, _ *scanner.Context) []scanner.Result {
 
-			nodeMetadata := block.GetBlock("workload_metadata_config").GetAttribute("node_metadata")
+			nodeMetadata := block.GetBlock("node_config").GetBlock("workload_metadata_config").GetAttribute("node_metadata")
 
 			if nodeMetadata != nil && nodeMetadata.Type() == cty.String &&
 				(nodeMetadata.Value().AsString() == "EXPOSE" || nodeMetadata.Value().AsString() == "UNSPECIFIED") {

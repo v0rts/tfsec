@@ -13,11 +13,13 @@ import (
 // AWSPlaintextNodeToNodeElasticsearchTraffic See https://github.com/tfsec/tfsec#included-checks for check info
 const AWSPlaintextNodeToNodeElasticsearchTraffic scanner.RuleCode = "AWS032"
 const AWSPlaintextNodeToNodeElasticsearchTrafficDescription scanner.RuleSummary = "Elasticsearch domain uses plaintext traffic for node to node communication."
+const AWSPlaintextNodeToNodeElasticsearchTrafficImpact = "In transit data between nodes could be read if intercepted"
+const AWSPlaintextNodeToNodeElasticsearchTrafficResolution = "Enable encrypted node to node communication"
 const AWSPlaintextNodeToNodeElasticsearchTrafficExplanation = `
 Traffic flowing between Elasticsearch nodes should be encrypted to ensure sensitive data is kept private.
 `
 const AWSPlaintextNodeToNodeElasticsearchTrafficBadExample = `
-resource "aws_elasticsearch_domain" "my_elasticsearch_domain" {
+resource "aws_elasticsearch_domain" "bad_example" {
   domain_name = "domain-foo"
 
   node_to_node_encryption {
@@ -26,7 +28,7 @@ resource "aws_elasticsearch_domain" "my_elasticsearch_domain" {
 }
 `
 const AWSPlaintextNodeToNodeElasticsearchTrafficGoodExample = `
-resource "aws_elasticsearch_domain" "my_elasticsearch_domain" {
+resource "aws_elasticsearch_domain" "good_example" {
   domain_name = "domain-foo"
 
   node_to_node_encryption {
@@ -40,10 +42,15 @@ func init() {
 		Code: AWSPlaintextNodeToNodeElasticsearchTraffic,
 		Documentation: scanner.CheckDocumentation{
 			Summary:     AWSPlaintextNodeToNodeElasticsearchTrafficDescription,
+			Impact:      AWSPlaintextNodeToNodeElasticsearchTrafficImpact,
+			Resolution:  AWSPlaintextNodeToNodeElasticsearchTrafficResolution,
 			Explanation: AWSPlaintextNodeToNodeElasticsearchTrafficExplanation,
 			BadExample:  AWSPlaintextNodeToNodeElasticsearchTrafficBadExample,
 			GoodExample: AWSPlaintextNodeToNodeElasticsearchTrafficGoodExample,
-			Links:       []string{},
+			Links: []string{
+				"https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/elasticsearch_domain#encrypt_at_rest",
+				"https://docs.aws.amazon.com/elasticsearch-service/latest/developerguide/ntn.html",
+			},
 		},
 		Provider:       scanner.AWSProvider,
 		RequiredTypes:  []string{"resource"},

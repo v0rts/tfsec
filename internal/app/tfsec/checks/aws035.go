@@ -10,11 +10,13 @@ import (
 
 const AWSUnencryptedAtRestElasticacheReplicationGroup scanner.RuleCode = "AWS035"
 const AWSUnencryptedAtRestElasticacheReplicationGroupDescription scanner.RuleSummary = "Unencrypted Elasticache Replication Group."
+const AWSUnencryptedAtRestElasticacheReplicationGroupImpact = "Data in the replication group could be readable if compromised"
+const AWSUnencryptedAtRestElasticacheReplicationGroupResolution = "Enable encryption for replication group"
 const AWSUnencryptedAtRestElasticacheReplicationGroupExplanation = `
 You should ensure your Elasticache data is encrypted at rest to help prevent sensitive information from being read by unauthorised users.
 `
 const AWSUnencryptedAtRestElasticacheReplicationGroupBadExample = `
-resource "aws_elasticache_replication_group" "my-resource" {
+resource "aws_elasticache_replication_group" "bad_example" {
         replication_group_id = "foo"
         replication_group_description = "my foo cluster"
 
@@ -22,7 +24,7 @@ resource "aws_elasticache_replication_group" "my-resource" {
 }
 `
 const AWSUnencryptedAtRestElasticacheReplicationGroupGoodExample = `
-resource "aws_elasticache_replication_group" "my-resource" {
+resource "aws_elasticache_replication_group" "good_example" {
         replication_group_id = "foo"
         replication_group_description = "my foo cluster"
 
@@ -35,10 +37,15 @@ func init() {
 		Code: AWSUnencryptedAtRestElasticacheReplicationGroup,
 		Documentation: scanner.CheckDocumentation{
 			Summary:     AWSUnencryptedAtRestElasticacheReplicationGroupDescription,
+			Impact:      AWSUnencryptedAtRestElasticacheReplicationGroupImpact,
+			Resolution:  AWSUnencryptedAtRestElasticacheReplicationGroupResolution,
 			Explanation: AWSUnencryptedAtRestElasticacheReplicationGroupExplanation,
 			BadExample:  AWSUnencryptedAtRestElasticacheReplicationGroupBadExample,
 			GoodExample: AWSUnencryptedAtRestElasticacheReplicationGroupGoodExample,
-			Links:       []string{},
+			Links: []string{
+				"https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/elasticache_replication_group#at_rest_encryption_enabled",
+				"https://docs.aws.amazon.com/AmazonElastiCache/latest/red-ug/at-rest-encryption.html",
+			},
 		},
 		Provider:       scanner.AWSProvider,
 		RequiredTypes:  []string{"resource"},

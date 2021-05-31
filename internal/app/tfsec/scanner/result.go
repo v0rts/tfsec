@@ -13,8 +13,11 @@ type Result struct {
 	Link            string       `json:"link"`
 	Range           parser.Range `json:"location"`
 	Description     string       `json:"description"`
+	Impact          string       `json:"impact"`
+	Resolution      string       `json:"resolution"`
 	RangeAnnotation string       `json:"-"`
 	Severity        Severity     `json:"severity"`
+	Passed          bool         `json:"passed"`
 }
 
 type Severity string
@@ -27,6 +30,10 @@ const (
 
 var ValidSeverity = []Severity{
 	SeverityError, SeverityWarning, SeverityInfo,
+}
+
+func (r *Result) OverrideSeverity(severity string) {
+	r.Severity = Severity(severity)
 }
 
 func (s *Severity) IsValid() bool {

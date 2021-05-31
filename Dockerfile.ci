@@ -1,0 +1,7 @@
+FROM alpine
+# use a non-privileged user
+USER nobody
+# work somewhere where we can write
+COPY tfsec /usr/bin/tfsec
+# as we specified an entrypoint, this is appended as an argument (i.e., `tfsec --help`)
+CMD [ "tfsec", "--help" ]

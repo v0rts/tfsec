@@ -13,6 +13,8 @@ import (
 const (
 	AWSIAMPasswordReusePrevention            scanner.RuleCode    = "AWS037"
 	AWSIAMPasswordReusePreventionDescription scanner.RuleSummary = "IAM Password policy should prevent password reuse."
+	AWSIAMPasswordReusePreventionImpact                          = "Password reuse increase the risk of compromised passwords being abused"
+	AWSIAMPasswordReusePreventionResolution                      = "Prevent password reuse in the policy"
 
 	AWSIAMPasswordReusePreventionExplanation = `
 IAM account password policies should prevent the reuse of passwords. 
@@ -20,14 +22,14 @@ IAM account password policies should prevent the reuse of passwords.
 The account password policy should be set to prevent using any of the last five used passwords.
 `
 	AWSIAMPasswordReusePreventionBadExample = `
-resource "aws_iam_account_password_policy" "strict" {
+resource "aws_iam_account_password_policy" "bad_example" {
 	# ...
 	password_reuse_prevention = 1
 	# ...
 }
 `
 	AWSIAMPasswordReusePreventionGoodExample = `
-resource "aws_iam_account_password_policy" "strict" {
+resource "aws_iam_account_password_policy" "good_example" {
 	# ...
 	password_reuse_prevention = 5
 	# ...
@@ -40,6 +42,8 @@ func init() {
 		Code: AWSIAMPasswordReusePrevention,
 		Documentation: scanner.CheckDocumentation{
 			Summary:     AWSIAMPasswordReusePreventionDescription,
+			Impact:      AWSIAMPasswordReusePreventionImpact,
+			Resolution:  AWSIAMPasswordReusePreventionResolution,
 			Explanation: AWSIAMPasswordReusePreventionExplanation,
 			BadExample:  AWSIAMPasswordReusePreventionBadExample,
 			GoodExample: AWSIAMPasswordReusePreventionGoodExample,

@@ -2,6 +2,7 @@ package checks
 
 import (
 	"fmt"
+
 	"github.com/tfsec/tfsec/internal/app/tfsec/parser"
 	"github.com/tfsec/tfsec/internal/app/tfsec/scanner"
 	"github.com/zclconf/go-cty/cty"
@@ -9,16 +10,18 @@ import (
 
 const AZUAKSAzureMonitor scanner.RuleCode = "AZU009"
 const AZUAKSAzureMonitorDescription scanner.RuleSummary = "Ensure AKS logging to Azure Monitoring is Configured"
+const AZUAKSAzureMonitorImpact = "Logging provides valuable information about access and usage"
+const AZUAKSAzureMonitorResolution = "Enable logging for AKS"
 const AZUAKSAzureMonitorExplanation = `
 Ensure AKS logging to Azure Monitoring is configured for containers to monitor the performance of workloads.
 `
 const AZUAKSAzureMonitorBadExample = `
-resource "azurerm_kubernetes_cluster" "my-aks-cluster" {
+resource "azurerm_kubernetes_cluster" "bad_example" {
     addon_profile {}
 }
 `
 const AZUAKSAzureMonitorGoodExample = `
-resource "azurerm_kubernetes_cluster" "my-aks-cluster" {
+resource "azurerm_kubernetes_cluster" "good_example" {
     addon_profile {
 		oms_agent {
 			enabled = true
@@ -32,6 +35,8 @@ func init() {
 		Code: AZUAKSAzureMonitor,
 		Documentation: scanner.CheckDocumentation{
 			Summary:     AZUAKSAzureMonitorDescription,
+			Impact:      AZUAKSAzureMonitorImpact,
+			Resolution:  AZUAKSAzureMonitorResolution,
 			Explanation: AZUAKSAzureMonitorExplanation,
 			BadExample:  AZUAKSAzureMonitorBadExample,
 			GoodExample: AZUAKSAzureMonitorGoodExample,
@@ -68,7 +73,7 @@ func init() {
 			}
 
 			enabledAttr := omsagentBlock.GetAttribute("enabled")
-			if enabledAttr.Type() == cty.Bool && enabledAttr.Value().False() || enabledAttr == nil{
+			if enabledAttr.Type() == cty.Bool && enabledAttr.Value().False() || enabledAttr == nil {
 				return []scanner.Result{
 					check.NewResultWithValueAnnotation(
 						fmt.Sprintf(

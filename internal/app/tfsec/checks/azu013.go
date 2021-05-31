@@ -9,13 +9,15 @@ import (
 
 const AZUTrustedMicrosoftServicesHaveStroageAccountAccess scanner.RuleCode = "AZU013"
 const AZUTrustedMicrosoftServicesHaveStroageAccountAccessDescription scanner.RuleSummary = "Trusted Microsoft Services should have bypass access to Storage accounts"
+const AZUTrustedMicrosoftServicesHaveStroageAccountAccessImpact = "Trusted Microsoft Services won't be able to access storage account unless rules set to allow"
+const AZUTrustedMicrosoftServicesHaveStroageAccountAccessResolution = "Allow Trusted Microsoft Services to bypass"
 const AZUTrustedMicrosoftServicesHaveStroageAccountAccessExplanation = `
 Some Microsoft services that interact with storage accounts operate from networks that can't be granted access through network rules. 
 
 To help this type of service work as intended, allow the set of trusted Microsoft services to bypass the network rules
 `
 const AZUTrustedMicrosoftServicesHaveStroageAccountAccessBadExample = `
-resource "azurerm_storage_account" "example" {
+resource "azurerm_storage_account" "bad_example" {
   name                = "storageaccountname"
   resource_group_name = azurerm_resource_group.example.name
 
@@ -46,7 +48,7 @@ resource "azurerm_storage_account_network_rules" "test" {
 }
 `
 const AZUTrustedMicrosoftServicesHaveStroageAccountAccessGoodExample = `
-resource "azurerm_storage_account" "example" {
+resource "azurerm_storage_account" "good_example" {
   name                = "storageaccountname"
   resource_group_name = azurerm_resource_group.example.name
 
@@ -82,6 +84,8 @@ func init() {
 		Code: AZUTrustedMicrosoftServicesHaveStroageAccountAccess,
 		Documentation: scanner.CheckDocumentation{
 			Summary:     AZUTrustedMicrosoftServicesHaveStroageAccountAccessDescription,
+			Impact:      AZUTrustedMicrosoftServicesHaveStroageAccountAccessImpact,
+			Resolution:  AZUTrustedMicrosoftServicesHaveStroageAccountAccessResolution,
 			Explanation: AZUTrustedMicrosoftServicesHaveStroageAccountAccessExplanation,
 			BadExample:  AZUTrustedMicrosoftServicesHaveStroageAccountAccessBadExample,
 			GoodExample: AZUTrustedMicrosoftServicesHaveStroageAccountAccessGoodExample,
@@ -96,7 +100,7 @@ func init() {
 		RequiredLabels: []string{"azurerm_storage_account_network_rules", "azurerm_storage_account"},
 		CheckFunc: func(check *scanner.Check, block *parser.Block, _ *scanner.Context) []scanner.Result {
 
-			if block.Labels()[0] == "azurerm_storage_account" {
+			if block.IsResourceType("azurerm_storage_account") {
 				if block.MissingChild("network_rules") {
 					return nil
 				}

@@ -7,6 +7,9 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/tfsec/tfsec/internal/app/tfsec/config"
+	"github.com/tfsec/tfsec/internal/app/tfsec/updater"
+
 	"github.com/tfsec/tfsec/internal/app/tfsec/custom"
 
 	"github.com/tfsec/tfsec/internal/app/tfsec/debug"
@@ -24,25 +27,50 @@ import (
 )
 
 var showVersion = false
+var runUpdate = false
 var disableColours = false
 var format string
 var softFail = false
+var filterResults string
 var excludedChecks string
 var tfvarsPath string
 var outputFlag string
 var customCheckDir string
+var configFile string
+var tfsecConfig = &config.Config{}
+var conciseOutput = false
+var excludeDownloaded = false
+var detailedExitCode = false
+var includePassed = false
+var includeIgnored = false
+var ignoreWarnings = false
+var ignoreInfo = false
+var allDirs = false
+var runStatistics bool
 
 func init() {
 	rootCmd.Flags().BoolVar(&disableColours, "no-colour", disableColours, "Disable coloured output")
 	rootCmd.Flags().BoolVar(&disableColours, "no-color", disableColours, "Disable colored output (American style!)")
 	rootCmd.Flags().BoolVarP(&showVersion, "version", "v", showVersion, "Show version information and exit")
+	rootCmd.Flags().BoolVar(&runUpdate, "update", runUpdate, "Update to latest version")
 	rootCmd.Flags().StringVarP(&format, "format", "f", format, "Select output format: default, json, csv, checkstyle, junit, sarif")
 	rootCmd.Flags().StringVarP(&excludedChecks, "exclude", "e", excludedChecks, "Provide checks via , without space to exclude from run.")
+	rootCmd.Flags().StringVar(&filterResults, "filter-results", filterResults, "Filter results to return specific checks only (supports comma-delimited input).")
 	rootCmd.Flags().BoolVarP(&softFail, "soft-fail", "s", softFail, "Runs checks but suppresses error code")
 	rootCmd.Flags().StringVar(&tfvarsPath, "tfvars-file", tfvarsPath, "Path to .tfvars file")
 	rootCmd.Flags().StringVar(&outputFlag, "out", outputFlag, "Set output file")
 	rootCmd.Flags().StringVar(&customCheckDir, "custom-check-dir", customCheckDir, "Explicitly the custom checks dir location")
+	rootCmd.Flags().StringVar(&configFile, "config-file", configFile, "Config file to use during run")
 	rootCmd.Flags().BoolVar(&debug.Enabled, "verbose", debug.Enabled, "Enable verbose logging")
+	rootCmd.Flags().BoolVar(&conciseOutput, "concise-output", conciseOutput, "Reduce the amount of output and no statistics")
+	rootCmd.Flags().BoolVar(&excludeDownloaded, "exclude-downloaded-modules", excludeDownloaded, "Remove results for downloaded modules in .terraform folder")
+	rootCmd.Flags().BoolVar(&detailedExitCode, "detailed-exit-code", detailedExitCode, "Produce more detailed exit status codes.")
+	rootCmd.Flags().BoolVar(&includePassed, "include-passed", includePassed, "Include passed checks in the result output")
+	rootCmd.Flags().BoolVar(&includeIgnored, "include-ignored", includeIgnored, "Include ignored checks in the result output")
+	rootCmd.Flags().BoolVar(&allDirs, "force-all-dirs", allDirs, "Don't search for tf files, include everything below provided directory.")
+	rootCmd.Flags().BoolVar(&runStatistics, "run-statistics", runStatistics, "View statistics table of current findings.")
+	rootCmd.Flags().BoolVar(&ignoreWarnings, "ignore-warnings", ignoreWarnings, "Don't show warnings in the output.")
+	rootCmd.Flags().BoolVar(&ignoreInfo, "ignore-info", ignoreWarnings, "Don't show info results in the output.")
 }
 
 func main() {
@@ -68,11 +96,19 @@ var rootCmd = &cobra.Command{
 			fmt.Println(version.Version)
 			os.Exit(0)
 		}
+
+		if runUpdate {
+			if err := updater.Update(); err != nil {
+				tml.Printf("Not updating, %s\n", err.Error())
+			}
+			os.Exit(0)
+		}
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 
 		var dir string
 		var err error
+		var filterResultsList []string
 		var excludedChecksList []string
 		var outputFile *os.File
 
@@ -85,11 +121,26 @@ var rootCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
+		tfsecDir := fmt.Sprintf("%s/.tfsec", dir)
+
+		if len(configFile) > 0 {
+			tfsecConfig = loadConfigFile(configFile)
+		} else {
+			jsonConfigFile := fmt.Sprintf("%s/%s", tfsecDir, "config.json")
+			yamlConfigFile := fmt.Sprintf("%s/%s", tfsecDir, "config.yml")
+			if _, err = os.Stat(jsonConfigFile); err == nil {
+				tfsecConfig = loadConfigFile(jsonConfigFile)
+			} else if _, err = os.Stat(yamlConfigFile); err == nil {
+				tfsecConfig = loadConfigFile(yamlConfigFile)
+			} else {
+				tfsecConfig = &config.Config{}
+			}
+		}
 
 		debug.Log("Loading custom checks...")
 		if len(customCheckDir) == 0 {
 			debug.Log("Using the default custom check folder")
-			customCheckDir = fmt.Sprintf("%s/.tfsec", dir)
+			customCheckDir = tfsecDir
 		}
 		debug.Log("custom check directory set to %s", customCheckDir)
 		err = custom.Load(customCheckDir)
@@ -98,6 +149,10 @@ var rootCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		debug.Log("Custom checks loaded")
+
+		if len(filterResults) > 0 {
+			filterResultsList = strings.Split(filterResults, ",")
+		}
 
 		if len(excludedChecks) > 0 {
 			excludedChecksList = strings.Split(excludedChecks, ",")
@@ -127,23 +182,60 @@ var rootCmd = &cobra.Command{
 				fmt.Println(err)
 				os.Exit(1)
 			}
+		} else if unusedTfvarsPresent(dir) {
+			tml.Printf("\n<yellow>Warning: A tfvars file was found but not automatically used. \nDid you mean to specify the --tfvars-file flag?</yellow>\n")
 		}
 
 		debug.Log("Starting parser...")
-		blocks, err := parser.New(dir, tfvarsPath).ParseDirectory()
+		blocks, err := parser.New(dir, tfvarsPath, getParserOptions()...).ParseDirectory()
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
 
 		debug.Log("Starting scanner...")
-		results := scanner.New().Scan(blocks, excludedChecksList)
-		if err := formatter(outputFile, results, dir); err != nil {
+		results := scanner.New().Scan(blocks, mergeWithoutDuplicates(excludedChecksList, tfsecConfig.ExcludedChecks), getScannerOptions()...)
+		results = updateResultSeverity(results)
+		results = RemoveDuplicatesAndUnwanted(results, ignoreWarnings, excludeDownloaded)
+		if len(filterResultsList) > 0 {
+			var filteredResult []scanner.Result
+			for _, result := range results {
+				for _, checkID := range filterResultsList {
+					if string(result.RuleID) == checkID {
+						filteredResult = append(filteredResult, result)
+					}
+				}
+			}
+			results = filteredResult
+		}
+
+		if runStatistics {
+			statistics := scanner.Statistics{}
+			for _, result := range results {
+				statistics = scanner.AddStatisticsCount(statistics, result)
+			}
+			statistics.PrintStatisticsTable()
+			os.Exit(0)
+		}
+
+		if err := formatter(outputFile, results, dir, getFormatterOptions()...); err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
 
-		if len(results) == 0 || softFail {
+		// Soft fail always takes precedence. If set, only execution errors
+		// produce a failure exit code (1).
+		if softFail {
+			os.Exit(0)
+		}
+
+		if detailedExitCode {
+			os.Exit(getDetailedExitCode(results))
+		}
+
+		// If all failed checks are of INFO severity, then produce a success
+		// exit code (0).
+		if allInfo(results) {
 			os.Exit(0)
 		}
 
@@ -151,8 +243,124 @@ var rootCmd = &cobra.Command{
 	},
 }
 
+func getParserOptions() []parser.ParserOption {
+	var opts []parser.ParserOption
+	if allDirs {
+		opts = append(opts, parser.DontSearchTfFiles)
+	}
+	return opts
+}
+
+func getDetailedExitCode(results []scanner.Result) int {
+	// If there are no failed checks, then produce a success exit code (0).
+	if len(results) == 0 || len(results) == countPassedResults(results) {
+		return 0
+	}
+
+	// If there are some failed checks but they are all of INFO severity, then
+	// produce a special failure exit code (2).
+	if allInfo(results) {
+		return 2
+	}
+
+	// If there is any failed check of ERROR or WARNING severity, then
+	// produce the regular failure exit code (1).
+	return 1
+}
+
+func RemoveDuplicatesAndUnwanted(results []scanner.Result, ignoreWarnings bool, excludeDownloaded bool) []scanner.Result {
+	reduction := map[scanner.Result]bool{}
+
+	for _, result := range results {
+		reduction[result] = true
+	}
+
+	var returnVal []scanner.Result
+	for r, _ := range reduction {
+		if excludeDownloaded && strings.Contains(r.Range.Filename, "/.terraform") {
+			continue
+		}
+
+		if ignoreWarnings && r.Severity == scanner.SeverityWarning {
+			continue
+		}
+
+		if ignoreInfo && r.Severity == scanner.SeverityInfo {
+			continue
+		}
+
+		returnVal = append(returnVal, r)
+	}
+	return returnVal
+}
+
+func getFormatterOptions() []formatters.FormatterOption {
+	var options []formatters.FormatterOption
+	if conciseOutput {
+		options = append(options, formatters.ConciseOutput)
+	}
+	if includePassed {
+		options = append(options, formatters.IncludePassed)
+	}
+	return options
+}
+
+func getScannerOptions() []scanner.ScannerOption {
+	var options []scanner.ScannerOption
+	if includePassed {
+		options = append(options, scanner.IncludePassed)
+	}
+	if includeIgnored {
+		options = append(options, scanner.IncludeIgnored)
+	}
+	return options
+}
+
+func mergeWithoutDuplicates(left, right []string) []string {
+	all := append(left, right...)
+	var set = map[string]bool{}
+	for _, x := range all {
+		set[x] = true
+	}
+	var result []string
+	for x, _ := range set {
+		result = append(result, x)
+	}
+
+	return result
+}
+
+func allInfo(results []scanner.Result) bool {
+	for _, result := range results {
+		if result.Severity != scanner.SeverityInfo && !result.Passed {
+			return false
+		}
+	}
+	return true
+}
+
+func updateResultSeverity(results []scanner.Result) []scanner.Result {
+	overrides := tfsecConfig.SeverityOverrides
+
+	if len(overrides) == 0 {
+		return results
+	}
+
+	var overriddenResults []scanner.Result
+	for _, result := range results {
+		for code, severity := range overrides {
+			if result.RuleID == scanner.RuleCode(code) {
+				result.OverrideSeverity(severity)
+			}
+		}
+		overriddenResults = append(overriddenResults, result)
+	}
+
+	return overriddenResults
+}
+
 func getFormatter() (formatters.Formatter, error) {
-	switch format {
+	switch strings.ToLower(format) {
 	case "", "default":
 		return formatters.FormatDefault, nil
 	case "json":
@@ -170,4 +378,36 @@ func getFormatter() (formatters.Formatter, error) {
 	default:
 		return nil, fmt.Errorf("invalid format specified: '%s'", format)
 	}
+}
+
+func loadConfigFile(configFilePath string) *config.Config {
+	debug.Log("loading config file %s", configFilePath)
+	config, err := config.LoadConfig(configFilePath)
+	if err != nil {
+		fmt.Fprint(os.Stderr, fmt.Sprintf("Failed to load the config file. %s", err))
+		os.Exit(1)
+	}
+	debug.Log("loaded config file")
+	return config
+}
+
+func countPassedResults(results []scanner.Result) int {
+	passed := 0
+
+	for _, result := range results {
+		if result.Passed {
+			passed++
+		}
+	}
+
+	return passed
+}
+
+func unusedTfvarsPresent(checkDir string) bool {
+	glob := fmt.Sprintf("%s/*.tfvars", checkDir)
+	debug.Log("checking for tfvars files using glob: %s", glob)
+	if matches, err := filepath.Glob(glob); err == nil && len(matches) > 0 {
+		return true
+	}
+	return false
 }

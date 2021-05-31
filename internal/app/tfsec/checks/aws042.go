@@ -12,19 +12,20 @@ import (
 const (
 	AWSIAMPasswordRequiresLowercaseCharacter            scanner.RuleCode    = "AWS042"
 	AWSIAMPasswordRequiresLowercaseCharacterDescription scanner.RuleSummary = "IAM Password policy should have requirement for at least one lowercase character."
-
-	AWSIAMPasswordRequiresLowercaseCharacterExplanation = `
+	AWSIAMPasswordRequiresLowercaseCharacterImpact                          = "Short, simple passwords are easier to compromise"
+	AWSIAMPasswordRequiresLowercaseCharacterResolution                      = "Enforce longer, more complex passwords in the policy"
+	AWSIAMPasswordRequiresLowercaseCharacterExplanation                     = `
 IAM account password policies should ensure that passwords content including at least one lowercase character.
 `
 	AWSIAMPasswordRequiresLowercaseCharacterBadExample = `
-resource "aws_iam_account_password_policy" "strict" {
+resource "aws_iam_account_password_policy" "bad_example" {
 	# ...
 	# require_lowercase_characters not set
 	# ...
 }
 `
 	AWSIAMPasswordRequiresLowercaseCharacterGoodExample = `
-resource "aws_iam_account_password_policy" "strict" {
+resource "aws_iam_account_password_policy" "good_example" {
 	# ...
 	require_lowercase_characters = true
 	# ...
@@ -37,6 +38,8 @@ func init() {
 		Code: AWSIAMPasswordRequiresLowercaseCharacter,
 		Documentation: scanner.CheckDocumentation{
 			Summary:     AWSIAMPasswordRequiresLowercaseCharacterDescription,
+			Impact:      AWSIAMPasswordRequiresLowercaseCharacterImpact,
+			Resolution:  AWSIAMPasswordRequiresLowercaseCharacterResolution,
 			Explanation: AWSIAMPasswordRequiresLowercaseCharacterExplanation,
 			BadExample:  AWSIAMPasswordRequiresLowercaseCharacterBadExample,
 			GoodExample: AWSIAMPasswordRequiresLowercaseCharacterGoodExample,

@@ -67,7 +67,8 @@ resource "aws_db_instance" "foo" {
 }
 `,
 			mustIncludeResultCode: checks.AWSRDSPerformanceInsughtsEncryptionNotEnabled,
-		}, {
+		},
+		{
 			name: "Performance insights on aws_db_instance disable",
 			source: `
 resource "aws_db_instance" "foo" {
@@ -96,6 +97,56 @@ resource "aws_db_instance" "foo" {
   performance_insights_kms_key_id = "arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab"
 }
 `,
+			mustExcludeResultCode: checks.AWSRDSPerformanceInsughtsEncryptionNotEnabled,
+		},
+		{
+			name: "Testing issue 506: error when performance insights enabled and kms included",
+			source: `
+resource "aws_rds_cluster_instance" "covidshield_server_instances" {
+  count                        = 3
+
+  identifier           = "${var.rds_server_db_name}-instance-${count.index}"
+  cluster_identifier   = aws_rds_cluster.covidshield_server.id
+  instance_class       = var.rds_server_instance_class
+  db_subnet_group_name = aws_db_subnet_group.covidshield.name
+
+  # we are using managed key so safe to ignore this rule
+  performance_insights_enabled = true 
+  performance_insights_kms_key_id = "arn:aws:kms:${var.region}:${data.aws_caller_identity.current.account_id}:alias/aws/rds"
+  tags = {
+    Name                  = "${var.rds_server_db_name}-instance"
+    (var.billing_tag_key) = var.billing_tag_value
+  }
+}`,
+			mustExcludeResultCode: checks.AWSRDSPerformanceInsughtsEncryptionNotEnabled,
+		},
+		{
+			name: "Testing issue 505",
+			source: `
+resource "aws_kms_key" "rds_storage" {
+  description             = "KMS key 1"
+  deletion_window_in_days = 10
+}
+
+locals {
+	performance_insights_supported = true
+}
+
+resource "aws_rds_cluster_instance" "this" {
+   apply_immediately               = (var.environment != "production")
+   for_each                        = aws_rds_cluster.this.availability_zones
+   cluster_identifier              = aws_rds_cluster.this.id
+   identifier_prefix               = lower(var.deployment_id)
+   publicly_accessible             = false
+   availability_zone               = each.key
+   engine                          = "aurora-mysql"
+   tags                            = var.tags
+   instance_class                  = var.database_instance_class
+   db_subnet_group_name            = aws_db_subnet_group.this.name
+   copy_tags_to_snapshot           = true
+   performance_insights_enabled    = local.performance_insights_supported
+   performance_insights_kms_key_id = local.performance_insights_supported ? aws_kms_key.rds_storage.arn : null
+ }`,
 			mustExcludeResultCode: checks.AWSRDSPerformanceInsughtsEncryptionNotEnabled,
 		},
 	}

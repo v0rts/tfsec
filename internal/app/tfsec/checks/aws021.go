@@ -11,11 +11,13 @@ import (
 
 const AWSCloudFrontOutdatedProtocol scanner.RuleCode = "AWS021"
 const AWSCloudFrontOutdatedProtocolDescription scanner.RuleSummary = "CloudFront distribution uses outdated SSL/TLS protocols."
+const AWSCloudFrontOutdatedProtocolImpact = "Outdated SSL policies increase exposure to known vulnerabilites"
+const AWSCloudFrontOutdatedProtocolResolution = "Use the most modern TLS/SSL policies available"
 const AWSCloudFrontOutdatedProtocolExplanation = `
 You should not use outdated/insecure TLS versions for encryption. You should be using TLS v1.2+.
 `
 const AWSCloudFrontOutdatedProtocolBadExample = `
-resource "aws_cloudfront_distribution" "s3_distribution" {
+resource "aws_cloudfront_distribution" "bad_example" {
   viewer_certificate {
     cloudfront_default_certificate = true
 	minimum_protocol_version = "TLSv1.0"
@@ -23,7 +25,7 @@ resource "aws_cloudfront_distribution" "s3_distribution" {
 }
 `
 const AWSCloudFrontOutdatedProtocolGoodExample = `
-resource "aws_cloudfront_distribution" "s3_distribution" {
+resource "aws_cloudfront_distribution" "good_example" {
   viewer_certificate {
     cloudfront_default_certificate = true
 	minimum_protocol_version = "TLSv1.2_2019"
@@ -36,10 +38,15 @@ func init() {
 		Code: AWSCloudFrontOutdatedProtocol,
 		Documentation: scanner.CheckDocumentation{
 			Summary:     AWSCloudFrontOutdatedProtocolDescription,
+			Impact:      AWSCloudFrontOutdatedProtocolImpact,
+			Resolution:  AWSCloudFrontOutdatedProtocolResolution,
 			Explanation: AWSCloudFrontOutdatedProtocolExplanation,
 			BadExample:  AWSCloudFrontOutdatedProtocolBadExample,
 			GoodExample: AWSCloudFrontOutdatedProtocolGoodExample,
-			Links:       []string{},
+			Links: []string{
+				"https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudfront_distribution#minimum_protocol_version",
+				"https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/secure-connections-supported-viewer-protocols-ciphers.html",
+			},
 		},
 		Provider:       scanner.AWSProvider,
 		RequiredTypes:  []string{"resource"},
@@ -51,7 +58,7 @@ func init() {
 				return []scanner.Result{
 					check.NewResult(
 						fmt.Sprintf("Resource '%s' defines outdated SSL/TLS policies (missing viewer_certificate block)", block.FullName()),
-						viewerCertificateBlock.Range(),
+						block.Range(),
 						scanner.SeverityError,
 					),
 				}

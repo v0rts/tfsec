@@ -13,20 +13,22 @@ import (
 
 // AzureOpenInboundNetworkSecurityGroupRule See https://github.com/tfsec/tfsec#included-checks for check info
 const AzureOpenInboundNetworkSecurityGroupRule scanner.RuleCode = "AZU001"
-const AzureOpenInboundNetworkSecurityGroupRuleDescription scanner.RuleSummary = "An inbound network security rule allows traffic from `/0`."
+const AzureOpenInboundNetworkSecurityGroupRuleDescription scanner.RuleSummary = "An inbound network security rule allows traffic from /0."
+const AzureOpenInboundNetworkSecurityGroupRuleImpact = "The port is exposed for ingress from the internet"
+const AzureOpenInboundNetworkSecurityGroupRuleResolution = "Set a more restrictive cidr range"
 const AzureOpenInboundNetworkSecurityGroupRuleExplanation = `
 Network security rules should not use very broad subnets.
 
 Where possible, segements should be broken into smaller subnets.
 `
 const AzureOpenInboundNetworkSecurityGroupRuleBadExample = `
-resource "azurerm_network_security_rule" "my-rule" {
+resource "azurerm_network_security_rule" "bad_example" {
 	direction = "Inbound"
 	source_address_prefix = "0.0.0.0/0"
 	access = "Allow"
 }`
 const AzureOpenInboundNetworkSecurityGroupRuleGoodExample = `
-resource "azurerm_network_security_rule" "my-rule" {
+resource "azurerm_network_security_rule" "good_example" {
 	direction = "Inbound"
 	destination_address_prefix = "10.0.0.0/16"
 	access = "Allow"
@@ -37,6 +39,8 @@ func init() {
 		Code: AzureOpenInboundNetworkSecurityGroupRule,
 		Documentation: scanner.CheckDocumentation{
 			Summary:     AzureOpenInboundNetworkSecurityGroupRuleDescription,
+			Impact:      AzureOpenInboundNetworkSecurityGroupRuleImpact,
+			Resolution:  AzureOpenInboundNetworkSecurityGroupRuleResolution,
 			Explanation: AzureOpenInboundNetworkSecurityGroupRuleExplanation,
 			BadExample:  AzureOpenInboundNetworkSecurityGroupRuleBadExample,
 			GoodExample: AzureOpenInboundNetworkSecurityGroupRuleGoodExample,

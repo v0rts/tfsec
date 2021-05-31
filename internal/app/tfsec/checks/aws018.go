@@ -3,8 +3,6 @@ package checks
 import (
 	"fmt"
 
-	"github.com/zclconf/go-cty/cty"
-
 	"github.com/tfsec/tfsec/internal/app/tfsec/scanner"
 
 	"github.com/tfsec/tfsec/internal/app/tfsec/parser"
@@ -13,13 +11,15 @@ import (
 // AWSNoDescriptionInSecurityGroup See https://github.com/tfsec/tfsec#included-checks for check info
 const AWSNoDescriptionInSecurityGroup scanner.RuleCode = "AWS018"
 const AWSNoDescriptionInSecurityGroupDescription scanner.RuleSummary = "Missing description for security group/security group rule."
+const AWSNoDescriptionInSecurityGroupImpact = "Descriptions provide context for the firewall rule reasons"
+const AWSNoDescriptionInSecurityGroupResolution = "Add descriptions for all security groups anf rules"
 const AWSNoDescriptionInSecurityGroupExplanation = `
 Security groups and security group rules should include a description for auditing purposes.
 
 Simplifies auditing, debugging, and managing security groups.
 `
 const AWSNoDescriptionInSecurityGroupBadExample = `
-resource "aws_security_group" "http" {
+resource "aws_security_group" "bad_example" {
   name        = "http"
 
   ingress {
@@ -32,7 +32,7 @@ resource "aws_security_group" "http" {
 }
 `
 const AWSNoDescriptionInSecurityGroupGoodExample = `
-resource "aws_security_group" "http" {
+resource "aws_security_group" "good_example" {
   name        = "http"
   description = "Allow inbound HTTP traffic"
 
@@ -51,6 +51,8 @@ func init() {
 		Code: AWSNoDescriptionInSecurityGroup,
 		Documentation: scanner.CheckDocumentation{
 			Summary:     AWSNoDescriptionInSecurityGroupDescription,
+			Impact:      AWSNoDescriptionInSecurityGroupImpact,
+			Resolution:  AWSNoDescriptionInSecurityGroupResolution,
 			Explanation: AWSNoDescriptionInSecurityGroupExplanation,
 			BadExample:  AWSNoDescriptionInSecurityGroupBadExample,
 			GoodExample: AWSNoDescriptionInSecurityGroupGoodExample,
@@ -64,9 +66,7 @@ func init() {
 		RequiredTypes:  []string{"resource"},
 		RequiredLabels: []string{"aws_security_group", "aws_security_group_rule"},
 		CheckFunc: func(check *scanner.Check, block *parser.Block, _ *scanner.Context) []scanner.Result {
-
-			descriptionAttr := block.GetAttribute("description")
-			if descriptionAttr == nil {
+			if block.MissingChild("description") {
 				return []scanner.Result{
 					check.NewResult(
 						fmt.Sprintf("Resource '%s' should include a description for auditing purposes.", block.FullName()),
@@ -76,7 +76,8 @@ func init() {
 				}
 			}
 
-			if descriptionAttr.Type() == cty.String && descriptionAttr.Value().AsString() == "" {
+			descriptionAttr := block.GetAttribute("description")
+			if descriptionAttr.IsEmpty() {
 				return []scanner.Result{
 					check.NewResultWithValueAnnotation(
 						fmt.Sprintf("Resource '%s' should include a non-empty description for auditing purposes.", block.FullName()),
@@ -86,7 +87,6 @@ func init() {
 					),
 				}
 			}
-
 			return nil
 		},
 	})

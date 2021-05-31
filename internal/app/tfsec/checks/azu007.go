@@ -10,18 +10,20 @@ import (
 
 const AZUAKSClusterRBACenabled scanner.RuleCode = "AZU007"
 const AZUAKSClusterRBACenabledDescription scanner.RuleSummary = "Ensure RBAC is enabled on AKS clusters"
+const AZUAKSClusterRBACenabledImpact = "No role based access control is in place for the AKS cluster"
+const AZUAKSClusterRBACenabledResolution = "Enable RBAC"
 const AZUAKSClusterRBACenabledExplanation = `
 Using Kubernetes role-based access control (RBAC), you can grant users, groups, and service accounts access to only the resources they need.
 `
 const AZUAKSClusterRBACenabledBadExample = `
-resource "azurerm_kubernetes_cluster" "my-aks-cluster" {
+resource "azurerm_kubernetes_cluster" "bad_example" {
 	role_based_access_control {
 		enabled = false
 	}
 }
 `
 const AZUAKSClusterRBACenabledGoodExample = `
-resource "azurerm_kubernetes_cluster" "my-aks-cluster" {
+resource "azurerm_kubernetes_cluster" "good_example" {
 	role_based_access_control {
 		enabled = true
 	}
@@ -33,6 +35,8 @@ func init() {
 		Code: AZUAKSClusterRBACenabled,
 		Documentation: scanner.CheckDocumentation{
 			Summary:     AZUAKSClusterRBACenabledDescription,
+			Impact:      AZUAKSClusterRBACenabledImpact,
+			Resolution:  AZUAKSClusterRBACenabledResolution,
 			Explanation: AZUAKSClusterRBACenabledExplanation,
 			BadExample:  AZUAKSClusterRBACenabledBadExample,
 			GoodExample: AZUAKSClusterRBACenabledGoodExample,

@@ -2,19 +2,22 @@ package checks
 
 import (
 	"fmt"
+
 	"github.com/tfsec/tfsec/internal/app/tfsec/parser"
 	"github.com/tfsec/tfsec/internal/app/tfsec/scanner"
 	"github.com/zclconf/go-cty/cty"
 )
 
 const AWSOpenIngressNetworkACLRule scanner.RuleCode = "AWS049"
-const AWSOpenIngressNetworkACLRuleDescription scanner.RuleSummary = "An ingress Network ACL rule allows specific ports from `/0`."
+const AWSOpenIngressNetworkACLRuleDescription scanner.RuleSummary = "An ingress Network ACL rule allows specific ports from /0."
+const AWSOpenIngressNetworkACLRuleImpact = "The ports are exposed for ingressing data to the internet"
+const AWSOpenIngressNetworkACLRuleResolution = "Set a more restrictive cidr range"
 const AWSOpenIngressNetworkACLRuleExplanation = `
 Opening up ACLs to the public internet is potentially dangerous. You should restrict access to IP addresses or ranges that explicitly require it where possible.
 
 `
 const AWSOpenIngressNetworkACLRuleBadExample = `
-resource "aws_network_acl_rule" "my-rule" {
+resource "aws_network_acl_rule" "bad_example" {
   egress         = false
   protocol       = "tcp"
   from_port      = 22
@@ -24,7 +27,7 @@ resource "aws_network_acl_rule" "my-rule" {
 }
 `
 const AWSOpenIngressNetworkACLRuleGoodExample = `
-resource "aws_network_acl_rule" "my-rule" {
+resource "aws_network_acl_rule" "good_example" {
   egress         = false
   protocol       = "tcp"
   from_port      = 22
@@ -39,6 +42,8 @@ func init() {
 		Code: AWSOpenIngressNetworkACLRule,
 		Documentation: scanner.CheckDocumentation{
 			Summary:     AWSOpenIngressNetworkACLRuleDescription,
+			Impact:      AWSOpenIngressNetworkACLRuleImpact,
+			Resolution:  AWSOpenIngressNetworkACLRuleResolution,
 			Explanation: AWSOpenIngressNetworkACLRuleExplanation,
 			BadExample:  AWSOpenIngressNetworkACLRuleBadExample,
 			GoodExample: AWSOpenIngressNetworkACLRuleGoodExample,

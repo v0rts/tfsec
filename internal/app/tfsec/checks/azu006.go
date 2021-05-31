@@ -9,17 +9,19 @@ import (
 
 const AZUAKSClusterNetworkPolicy scanner.RuleCode = "AZU006"
 const AZUAKSClusterNetworkPolicyDescription scanner.RuleSummary = "Ensure AKS cluster has Network Policy configured"
+const AZUAKSClusterNetworkPolicyImpact = "No network policy is protecting the AKS cluster"
+const AZUAKSClusterNetworkPolicyResolution = "Configure a network policy"
 const AZUAKSClusterNetworkPolicyExplanation = `
 The Kubernetes object type NetworkPolicy should be defined to have opportunity allow or block traffic to pods, as in a Kubernetes cluster configured with default settings, all pods can discover and communicate with each other without any restrictions.
 `
 const AZUAKSClusterNetworkPolicyBadExample = `
-resource "azurerm_kubernetes_cluster" "my-aks-cluster" {
+resource "azurerm_kubernetes_cluster" "bad_example" {
 	network_profile {
 	  }
 }
 `
 const AZUAKSClusterNetworkPolicyGoodExample = `
-resource "azurerm_kubernetes_cluster" "my-aks-cluster" {
+resource "azurerm_kubernetes_cluster" "good_example" {
 	network_profile {
 	  network_policy = "calico"
 	  }
@@ -31,6 +33,8 @@ func init() {
 		Code: AZUAKSClusterNetworkPolicy,
 		Documentation: scanner.CheckDocumentation{
 			Summary:     AZUAKSClusterNetworkPolicyDescription,
+			Impact:      AZUAKSClusterNetworkPolicyImpact,
+			Resolution:  AZUAKSClusterNetworkPolicyResolution,
 			Explanation: AZUAKSClusterNetworkPolicyExplanation,
 			BadExample:  AZUAKSClusterNetworkPolicyBadExample,
 			GoodExample: AZUAKSClusterNetworkPolicyGoodExample,

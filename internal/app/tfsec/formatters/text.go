@@ -9,25 +9,38 @@ import (
 	"github.com/tfsec/tfsec/internal/app/tfsec/scanner"
 )
 
-func FormatText(_ io.Writer, results []scanner.Result, _ string) error {
+func FormatText(_ io.Writer, results []scanner.Result, _ string, options ...FormatterOption) error {
 
-	if len(results) == 0 {
+	if len(results) == 0 || len(results) == countPassedResults(results) {
 		fmt.Print("\nNo problems detected!\n")
+		return nil
+	}
+
+	includePassedChecks := false
+
+	for _, option := range options {
+		if option == IncludePassed {
+			includePassedChecks = true
+		}
 	}
 
 	var severity string
 
-	fmt.Printf("\n%d potential problems detected:\n\n", len(results))
+	fmt.Printf("\n%d potential problems detected:\n\n", len(results)-countPassedResults(results))
 	for i, result := range results {
-		fmt.Printf("Problem %d\n", i+1)
+		fmt.Printf("Check %d\n", i+1)
 
-		switch result.Severity {
-		case scanner.SeverityError:
-			severity = fmt.Sprintf("%s", result.Severity)
-		case scanner.SeverityWarning:
-			severity = fmt.Sprintf("%s", result.Severity)
-		default:
-			severity = fmt.Sprintf("%s", result.Severity)
+		if includePassedChecks && result.Passed {
+			severity = "PASSED"
+		} else {
+			switch result.Severity {
+			case scanner.SeverityError:
+				severity = fmt.Sprintf("%s", result.Severity)
+			case scanner.SeverityWarning:
+				severity = fmt.Sprintf("%s", result.Severity)
+			default:
+				severity = fmt.Sprintf("%s", result.Severity)
+			}
 		}
 
 		fmt.Printf(`
@@ -36,7 +49,7 @@ func FormatText(_ io.Writer, results []scanner.Result, _ string) error {
 
 `, result.RuleID, severity, result.Description, result.Range.String())
 		outputCode(result)
-		fmt.Printf("  See %s for more information.\n\n", result.Link)
+		fmt.Printf("  %s\n\n", result.Link)
 	}
 
 	return nil

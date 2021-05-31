@@ -10,6 +10,8 @@ import (
 // GoogleUnencryptedDisk See https://github.com/tfsec/tfsec#included-checks for check info
 const GoogleUnencryptedDisk scanner.RuleCode = "GCP001"
 const GoogleUnencryptedDiskDescription scanner.RuleSummary = "Unencrypted compute disk."
+const GoogleUnencryptedDiskImpact = "Data could be readable if compromised"
+const GoogleUnencryptedDiskResolution = "Enable encrytion for compute disks"
 const GoogleUnencryptedDiskExplanation = `
 By default, Compute Engine encrypts all data at rest. Compute Engine handles and manages this encryption for you without any additional actions on your part.
 
@@ -18,19 +20,19 @@ If the <code>disk_encryption_key</code> block is included in the resource declar
 To use the default offering of Google managed keys, do not include a <code>disk_encryption_key</code> block at all.
 `
 const GoogleUnencryptedDiskBadExample = `
-resource "google_compute_disk" "my-disk" {
+resource "google_compute_disk" "bad_example" {
 	# ... 
 	disk_encryption_key {}
 	# ...
 }`
 const GoogleUnencryptedDiskGoodExample = `
-resource "google_compute_disk" "my-disk" {
+resource "google_compute_disk" "good_example" {
 	disk_encryption_key {
 		kms_key_self_link = "something"
 	}
 }
 
-resource "google_compute_disk" "another-my-disk" {
+resource "google_compute_disk" "good_example" {
 	disk_encryption_key {
 		raw_key = "something"
 	}
@@ -41,6 +43,8 @@ func init() {
 		Code: GoogleUnencryptedDisk,
 		Documentation: scanner.CheckDocumentation{
 			Summary:     GoogleUnencryptedDiskDescription,
+			Impact:      GoogleUnencryptedDiskImpact,
+			Resolution:  GoogleUnencryptedDiskResolution,
 			Explanation: GoogleUnencryptedDiskExplanation,
 			BadExample:  GoogleUnencryptedDiskBadExample,
 			GoodExample: GoogleUnencryptedDiskGoodExample,

@@ -13,11 +13,13 @@ import (
 // AWSEcrImageScanNotEnabled See https://github.com/tfsec/tfsec#included-checks for check info
 const AWSEcrImageScanNotEnabled scanner.RuleCode = "AWS023"
 const AWSEcrImageScanNotEnabledDescription scanner.RuleSummary = "ECR repository has image scans disabled."
+const AWSEcrImageScanNotEnabledImpact = "The ability to scan images is not being used and vulnerabilities will not be highlighted"
+const AWSEcrImageScanNotEnabledResolution = "Enable ECR image scanning"
 const AWSEcrImageScanNotEnabledExplanation = `
 Repository image scans should be enabled to ensure vulnerable software can be discovered and remediated as soon as possible.
 `
 const AWSEcrImageScanNotEnabledBadExample = `
-resource "aws_ecr_repository" "foo" {
+resource "aws_ecr_repository" "bad_example" {
   name                 = "bar"
   image_tag_mutability = "MUTABLE"
 
@@ -27,7 +29,7 @@ resource "aws_ecr_repository" "foo" {
 }
 `
 const AWSEcrImageScanNotEnabledGoodExample = `
-resource "aws_ecr_repository" "foo" {
+resource "aws_ecr_repository" "good_example" {
   name                 = "bar"
   image_tag_mutability = "MUTABLE"
 
@@ -42,10 +44,15 @@ func init() {
 		Code: AWSEcrImageScanNotEnabled,
 		Documentation: scanner.CheckDocumentation{
 			Summary:     AWSEcrImageScanNotEnabledDescription,
+			Impact:      AWSEcrImageScanNotEnabledImpact,
+			Resolution:  AWSEcrImageScanNotEnabledResolution,
 			Explanation: AWSEcrImageScanNotEnabledExplanation,
 			BadExample:  AWSEcrImageScanNotEnabledBadExample,
 			GoodExample: AWSEcrImageScanNotEnabledGoodExample,
-			Links:       []string{},
+			Links: []string{
+				"https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ecr_repository#image_scanning_configuration",
+				"https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-scanning.html",
+			},
 		},
 		Provider:       scanner.AWSProvider,
 		RequiredTypes:  []string{"resource"},

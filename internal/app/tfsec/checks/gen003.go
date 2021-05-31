@@ -15,13 +15,15 @@ import (
 // GenericSensitiveAttributes See https://github.com/tfsec/tfsec#included-checks for check info
 const GenericSensitiveAttributes scanner.RuleCode = "GEN003"
 const GenericSensitiveAttributesDescription scanner.RuleSummary = "Potentially sensitive data stored in block attribute."
+const GenericSensitiveAttributesImpact = "Block attribute could be leaking secrets"
+const GenericSensitiveAttributesResolution = "Don't include sensitive data in blocks"
 const GenericSensitiveAttributesExplanation = `
 Sensitive attributes such as passwords and API tokens should not be available in your templates, especially in a plaintext form. You can declare variables to hold the secrets, assuming you can provide values for those variables in a secure fashion. Alternatively, you can store these secrets in a secure secret store, such as AWS KMS.
 
 *NOTE: It is also recommended to store your Terraform state in an encrypted form.*
 `
 const GenericSensitiveAttributesBadExample = `
-resource "evil_corp" "virtual_machine" {
+resource "evil_corp" "bad_example" {
 	root_password = "p4ssw0rd"
 }
 `
@@ -31,7 +33,7 @@ variable "password" {
   type        = string
 }
 
-resource "evil_corp" "virtual_machine" {
+resource "evil_corp" "good_example" {
 	root_password = var.password
 }
 `
@@ -48,6 +50,18 @@ var sensitiveWhitelist = []struct {
 		Resource:  "aws_instance",
 		Attribute: "get_password_data",
 	},
+	{
+		Resource:  "github_actions_secret",
+		Attribute: "secret_name",
+	},
+	{
+		Resource:  "github_actions_organization_secret",
+		Attribute: "secret_name",
+	},
+	{
+		Resource:  "google_secret_manager_secret",
+		Attribute: "secret_id",
+	},
 }
 
 func init() {
@@ -55,6 +69,8 @@ func init() {
 		Code: GenericSensitiveAttributes,
 		Documentation: scanner.CheckDocumentation{
 			Summary:     GenericSensitiveAttributesDescription,
+			Impact:      GenericSensitiveAttributesImpact,
+			Resolution:  GenericSensitiveAttributesResolution,
 			Explanation: GenericSensitiveAttributesExplanation,
 			BadExample:  GenericSensitiveAttributesBadExample,
 			GoodExample: GenericSensitiveAttributesGoodExample,
@@ -72,7 +88,7 @@ func init() {
 		SKIP:
 			for _, attribute := range attributes {
 				for _, whitelisted := range sensitiveWhitelist {
-					if whitelisted.Resource == block.Labels()[0] && whitelisted.Attribute == attribute.Name() {
+					if whitelisted.Resource == block.TypeLabel() && whitelisted.Attribute == attribute.Name() {
 						continue SKIP
 					}
 				}

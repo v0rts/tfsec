@@ -11,17 +11,19 @@ import (
 )
 
 const AWSPubliclyAccessibleResource scanner.RuleCode = "AWS011"
-const AWSPubliclyAccessibleResourceDescription scanner.RuleSummary = "A resource is marked as publicly accessible."
+const AWSPubliclyAccessibleResourceDescription scanner.RuleSummary = "A database resource is marked as publicly accessible."
+const AWSPubliclyAccessibleResourceImpact = "The database instance is publicly accessible"
+const AWSPubliclyAccessibleResourceResolution = "Set the database to not be publically accessible"
 const AWSPubliclyAccessibleResourceExplanation = `
 Database resources should not publicly available. You should limit all access to the minimum that is required for your application to function. 
 `
 const AWSPubliclyAccessibleResourceBadExample = `
-resource "aws_db_instance" "my-resource" {
+resource "aws_db_instance" "bad_example" {
 	publicly_accessible = true
 }
 `
 const AWSPubliclyAccessibleResourceGoodExample = `
-resource "aws_db_instance" "my-resource" {
+resource "aws_db_instance" "good_example" {
 	publicly_accessible = false
 }
 `
@@ -31,6 +33,8 @@ func init() {
 		Code: AWSPubliclyAccessibleResource,
 		Documentation: scanner.CheckDocumentation{
 			Summary:     AWSPubliclyAccessibleResourceDescription,
+			Impact:      AWSPubliclyAccessibleResourceImpact,
+			Resolution:  AWSPubliclyAccessibleResourceResolution,
 			Explanation: AWSPubliclyAccessibleResourceExplanation,
 			BadExample:  AWSPubliclyAccessibleResourceBadExample,
 			GoodExample: AWSPubliclyAccessibleResourceGoodExample,

@@ -2,6 +2,7 @@ package checks
 
 import (
 	"fmt"
+
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/tfsec/tfsec/internal/app/tfsec/parser"
@@ -10,13 +11,15 @@ import (
 
 const AZUBlobStorageContainerNoPublicAccess scanner.RuleCode = "AZU011"
 const AZUBlobStorageContainerNoPublicAccessDescription scanner.RuleSummary = "Storage containers in blob storage mode should not have public access"
+const AZUBlobStorageContainerNoPublicAccessImpact = "Data in the storage container could be exposed publically"
+const AZUBlobStorageContainerNoPublicAccessResolution = "Disable public access to storage containers"
 const AZUBlobStorageContainerNoPublicAccessExplanation = `
 Storage container public access should be off. It can be configured for blobs only, containers and blobs or off entirely. The default is off, with no public access.
 
 Explicitly overriding publicAccess to anything other than off should be avoided.
 `
 const AZUBlobStorageContainerNoPublicAccessBadExample = `
-resource "azure_storage_container" "blob_storage_container" {
+resource "azure_storage_container" "bad_example" {
 	name                  = "terraform-container-storage"
 	container_access_type = "blob"
 	
@@ -26,7 +29,7 @@ resource "azure_storage_container" "blob_storage_container" {
 }
 `
 const AZUBlobStorageContainerNoPublicAccessGoodExample = `
-resource "azure_storage_container" "blob_storage_container" {
+resource "azure_storage_container" "good_example" {
 	name                  = "terraform-container-storage"
 	container_access_type = "blob"
 	
@@ -41,6 +44,8 @@ func init() {
 		Code: AZUBlobStorageContainerNoPublicAccess,
 		Documentation: scanner.CheckDocumentation{
 			Summary:     AZUBlobStorageContainerNoPublicAccessDescription,
+			Impact:      AZUBlobStorageContainerNoPublicAccessImpact,
+			Resolution:  AZUBlobStorageContainerNoPublicAccessResolution,
 			Explanation: AZUBlobStorageContainerNoPublicAccessExplanation,
 			BadExample:  AZUBlobStorageContainerNoPublicAccessBadExample,
 			GoodExample: AZUBlobStorageContainerNoPublicAccessGoodExample,

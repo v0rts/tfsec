@@ -2,13 +2,15 @@ package parser
 
 import (
 	"fmt"
-	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/tfsec/tfsec/internal/app/tfsec/debug"
-	"github.com/zclconf/go-cty/cty"
-	"github.com/zclconf/go-cty/cty/gocty"
 	"regexp"
 	"strings"
+
+	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/gocty"
+
+	"github.com/tfsec/tfsec/internal/app/tfsec/debug"
 )
 
 type Attribute struct {
@@ -31,11 +33,16 @@ func (attr *Attribute) Type() cty.Type {
 	return attr.Value().Type()
 }
 
-func (attr *Attribute) Value() cty.Value {
+func (attr *Attribute) Value() (ctyVal cty.Value) {
 	if attr == nil {
 		return cty.NilVal
 	}
-	ctyVal, _ := attr.hclAttribute.Expr.Value(attr.ctx)
+	defer func() {
+		if err := recover(); err != nil {
+			ctyVal = cty.NilVal
+		}
+	}()
+	ctyVal, _ = attr.hclAttribute.Expr.Value(attr.ctx)
 	if !ctyVal.IsKnown() {
 		return cty.NilVal
 	}
@@ -54,7 +61,13 @@ func (attr *Attribute) Name() string {
 	return attr.hclAttribute.Name
 }
 
-func (attr *Attribute) Contains(checkValue interface{}) bool {
+func (attr *Attribute) Contains(checkValue interface{}, equalityOptions ...EqualityOption) bool {
+	ignoreCase := false
+	for _, option := range equalityOptions {
+		if option == IgnoreCase {
+			ignoreCase = true
+		}
+	}
 	val := attr.Value()
 	if val.IsNull() {
 		return false
@@ -68,16 +81,34 @@ func (attr *Attribute) Contains(checkValue interface{}) bool {
 		}
 		return false
 	}
+	stringToLookFor := fmt.Sprintf("%v", checkValue)
 	if val.Type().IsListType() || val.Type().IsTupleType() {
 		valueSlice := val.AsValueSlice()
 		for _, value := range valueSlice {
-			if value.AsString() == checkValue {
+			stringToTest := value
+			if value.Type().IsObjectType() || value.Type().IsMapType() {
+				valueMap := value.AsValueMap()
+				stringToTest = valueMap["key"]
+			}
+			if ignoreCase && containsIgnoreCase(stringToTest.AsString(), stringToLookFor) {
+				return true
+			}
+			if strings.Contains(stringToTest.AsString(), stringToLookFor) {
 				return true
 			}
 		}
 		return false
 	}
-	return strings.Contains(val.AsString(), fmt.Sprintf("%v", checkValue))
+
+	if ignoreCase && containsIgnoreCase(val.AsString(), stringToLookFor) {
+		return true
+	}
+
+	return strings.Contains(val.AsString(), stringToLookFor)
+}
+
+func containsIgnoreCase(left, substring string) bool {
+	return strings.Contains(strings.ToLower(left), strings.ToLower(substring))
 }
 
 func (attr *Attribute) StartsWith(prefix interface{}) bool {
@@ -139,8 +170,9 @@ func (attr *Attribute) RegexMatches(pattern interface{}) bool {
 
 func (attr *Attribute) IsAny(options ...interface{}) bool {
 	if attr.Value().Type() == cty.String {
+		value := attr.Value().AsString()
 		for _, option := range options {
-			if option == attr.Value().AsString() {
+			if option == value {
 				return true
 			}
 		}
@@ -186,11 +218,27 @@ func (attr *Attribute) IsNone(options ...interface{}) bool {
 }
 
 func (attr *Attribute) IsTrue() bool {
-	return attr.Value().Type() == cty.Bool && attr.Value().True()
+	switch attr.Value().Type() {
+	case cty.Bool:
+		return attr.Value().True()
+	case cty.String:
+		val := attr.Value().AsString()
+		val = strings.Trim(val, "\"")
+		return strings.ToLower(val) == "true"
+	}
+	return false
 }
 
 func (attr *Attribute) IsFalse() bool {
-	return attr.Value().Type() == cty.Bool && attr.Value().False()
+	switch attr.Value().Type() {
+	case cty.Bool:
+		return attr.Value().False()
+	case cty.String:
+		val := attr.Value().AsString()
+		val = strings.Trim(val, "\"")
+		return strings.ToLower(val) == "false"
+	}
+	return false
 }
 
 func (attr *Attribute) IsEmpty() bool {
@@ -207,6 +255,24 @@ func (attr *Attribute) IsEmpty() bool {
 		// a number can't ever be empty
 		return false
 	}
+	if attr.Value().IsNull() {
+		switch t := attr.hclAttribute.Expr.(type) {
+		case *hclsyntax.FunctionCallExpr:
+			return false
+		case *hclsyntax.ScopeTraversalExpr:
+			return false
+		case *hclsyntax.ConditionalExpr:
+			return false
+		case *hclsyntax.TemplateExpr:
+			// walk the parts of the expression to ensure that it has a literal value
+			for _, p := range t.Parts {
+				part := p.(*hclsyntax.LiteralValueExpr)
+				if part != nil && !part.Val.IsNull() {
+					return false
+				}
+			}
+		}
+	}
 	return true
 }
 
@@ -220,4 +286,83 @@ func (attr *Attribute) MapValue(mapKey string) cty.Value {
 		}
 	}
 	return cty.StringVal("")
+}
+
+func (attr *Attribute) LessThan(checkValue interface{}) bool {
+	if attr.Value().Type() == cty.Number {
+		checkNumber, err := gocty.ToCtyValue(checkValue, cty.Number)
+		if err != nil {
+			debug.Log("Error converting number for equality check. %s", err)
+			return false
+		}
+
+		return attr.Value().LessThan(checkNumber).True()
+	}
+	return false
+}
+
+func (attr *Attribute) LessThanOrEqualTo(checkValue interface{}) bool {
+	if attr.Value().Type() == cty.Number {
+		checkNumber, err := gocty.ToCtyValue(checkValue, cty.Number)
+		if err != nil {
+			debug.Log("Error converting number for equality check. %s", err)
+			return false
+		}
+
+		return attr.Value().LessThanOrEqualTo(checkNumber).True()
+	}
+	return false
+}
+
+func (attr *Attribute) GreaterThan(checkValue interface{}) bool {
+	if attr.Value().Type() == cty.Number {
+		checkNumber, err := gocty.ToCtyValue(checkValue, cty.Number)
+		if err != nil {
+			debug.Log("Error converting number for equality check. %s", err)
+			return false
+		}
+
+		return attr.Value().GreaterThan(checkNumber).True()
+	}
+	return false
+}
+
+func (attr *Attribute) GreaterThanOrEqualTo(checkValue interface{}) bool {
+	if attr.Value().Type() == cty.Number {
+		checkNumber, err := gocty.ToCtyValue(checkValue, cty.Number)
+		if err != nil {
+			debug.Log("Error converting number for equality check. %s", err)
+			return false
+		}
+
+		return attr.Value().GreaterThanOrEqualTo(checkNumber).True()
+	}
+	return false
+}
+
+func (attr *Attribute) ReferencesDataBlock() bool {
+	switch t := attr.hclAttribute.Expr.(type) {
+	case *hclsyntax.ScopeTraversalExpr:
+		split := t.Traversal.SimpleSplit()
+		return split.Abs.RootName() == "data"
+	}
+	return false
+}
+
+func (attr *Attribute) ReferenceAsString() string {
+	var refParts []string
+	switch t := attr.hclAttribute.Expr.(type) {
+	case *hclsyntax.ScopeTraversalExpr:
+		parts := t.Traversal.SimpleSplit()
+		for _, p := range parts.Rel {
+			switch part := p.(type) {
+			case hcl.TraverseAttr:
+				refParts = append(refParts, part.Name)
+			}
+		}
+	}
+	if len(refParts) > 0 {
+		return strings.Join(refParts, ".")
+	}
+	return ""
 }

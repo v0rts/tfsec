@@ -11,20 +11,22 @@ import (
 )
 
 const AzureOpenOutboundNetworkSecurityGroupRule scanner.RuleCode = "AZU002"
-const AzureOpenOutboundNetworkSecurityGroupRuleDescription scanner.RuleSummary = "An outbound network security rule allows traffic to `/0`."
+const AzureOpenOutboundNetworkSecurityGroupRuleDescription scanner.RuleSummary = "An outbound network security rule allows traffic to /0."
+const AzureOpenOutboundNetworkSecurityGroupRuleImpact = "The port is exposed for egress to the internet"
+const AzureOpenOutboundNetworkSecurityGroupRuleResolution = "Set a more restrictive cidr range"
 const AzureOpenOutboundNetworkSecurityGroupRuleExplanation = `
 Network security rules should not use very broad subnets.
 
 Where possible, segments should be broken into smaller subnets.
 `
 const AzureOpenOutboundNetworkSecurityGroupRuleBadExample = `
-resource "azurerm_network_security_rule" "my-rule" {
+resource "azurerm_network_security_rule" "bad_example" {
 	direction = "Outbound"
 	destination_address_prefix = "0.0.0.0/0"
 	access = "Allow"
 }`
 const AzureOpenOutboundNetworkSecurityGroupRuleGoodExample = `
-resource "azurerm_network_security_rule" "my-rule" {
+resource "azurerm_network_security_rule" "good_example" {
 	direction = "Outbound"
 	destination_address_prefix = "10.0.0.0/16"
 	access = "Allow"
@@ -35,6 +37,8 @@ func init() {
 		Code: AzureOpenOutboundNetworkSecurityGroupRule,
 		Documentation: scanner.CheckDocumentation{
 			Summary:     AzureOpenOutboundNetworkSecurityGroupRuleDescription,
+			Impact:      AzureOpenOutboundNetworkSecurityGroupRuleImpact,
+			Resolution:  AzureOpenOutboundNetworkSecurityGroupRuleResolution,
 			Explanation: AzureOpenOutboundNetworkSecurityGroupRuleExplanation,
 			BadExample:  AzureOpenOutboundNetworkSecurityGroupRuleBadExample,
 			GoodExample: AzureOpenOutboundNetworkSecurityGroupRuleGoodExample,

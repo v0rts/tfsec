@@ -2,25 +2,28 @@ package checks
 
 import (
 	"fmt"
+
 	"github.com/tfsec/tfsec/internal/app/tfsec/scanner"
 
 	"github.com/tfsec/tfsec/internal/app/tfsec/parser"
 )
 
 const AWSOpenIngressSecurityGroupInlineRule scanner.RuleCode = "AWS008"
-const AWSOpenIngressSecurityGroupInlineRuleDescription scanner.RuleSummary = "An inline ingress security group rule allows traffic from `/0`."
+const AWSOpenIngressSecurityGroupInlineRuleDescription scanner.RuleSummary = "An inline ingress security group rule allows traffic from /0."
+const AWSOpenIngressSecurityGroupInlineRuleImpact = "The port is exposed for ingress from the internet"
+const AWSOpenIngressSecurityGroupInlineRuleResolution = "Set a more restrictive cidr range"
 const AWSOpenIngressSecurityGroupInlineRuleExplanation = `
 Opening up ports to the public internet is generally to be avoided. You should restrict access to IP addresses or ranges that explicitly require it where possible.
 `
 const AWSOpenIngressSecurityGroupInlineRuleBadExample = `
-resource "aws_security_group" "my-group" {
+resource "aws_security_group" "bad_example" {
 	ingress {
 		cidr_blocks = ["0.0.0.0/0"]
 	}
 }
 `
 const AWSOpenIngressSecurityGroupInlineRuleGoodExample = `
-resource "aws_security_group" "my-group" {
+resource "aws_security_group" "good_example" {
 	ingress {
 		cidr_blocks = ["1.2.3.4/32"]
 	}
@@ -32,6 +35,8 @@ func init() {
 		Code: AWSOpenIngressSecurityGroupInlineRule,
 		Documentation: scanner.CheckDocumentation{
 			Summary:     AWSOpenIngressSecurityGroupInlineRuleDescription,
+			Impact:      AWSOpenIngressSecurityGroupInlineRuleImpact,
+			Resolution:  AWSOpenIngressSecurityGroupInlineRuleResolution,
 			Explanation: AWSOpenIngressSecurityGroupInlineRuleExplanation,
 			BadExample:  AWSOpenIngressSecurityGroupInlineRuleBadExample,
 			GoodExample: AWSOpenIngressSecurityGroupInlineRuleGoodExample,

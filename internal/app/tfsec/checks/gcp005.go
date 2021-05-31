@@ -12,18 +12,20 @@ import (
 // GkeAbacEnabled See https://github.com/tfsec/tfsec#included-checks for check info
 const GkeAbacEnabled scanner.RuleCode = "GCP005"
 const GkeAbacEnabledDescription scanner.RuleSummary = "Legacy ABAC permissions are enabled."
+const GkeAbacEnabledImpact = "ABAC permissions are less secure than RBAC permissions"
+const GkeAbacEnabledResolution = "Switch to using RBAC permissions"
 const GkeAbacEnabledExplanation = `
 You should disable Attribute-Based Access Control (ABAC), and instead use Role-Based Access Control (RBAC) in GKE.
 
 RBAC has significant security advantages and is now stable in Kubernetes, so it’s time to disable ABAC.
 `
 const GkeAbacEnabledBadExample = `
-resource "google_container_cluster" "gke" {
+resource "google_container_cluster" "bad_example" {
 	enable_legacy_abac = "true"
 }
 `
 const GkeAbacEnabledGoodExample = `
-resource "google_container_cluster" "gke" {
+resource "google_container_cluster" "good_example" {
 	# ...
 	# enable_legacy_abac not set
 	# ...
@@ -35,6 +37,8 @@ func init() {
 		Code: GkeAbacEnabled,
 		Documentation: scanner.CheckDocumentation{
 			Summary:     GkeAbacEnabledDescription,
+			Impact:      GkeAbacEnabledImpact,
+			Resolution:  GkeAbacEnabledResolution,
 			Explanation: GkeAbacEnabledExplanation,
 			BadExample:  GkeAbacEnabledBadExample,
 			GoodExample: GkeAbacEnabledGoodExample,

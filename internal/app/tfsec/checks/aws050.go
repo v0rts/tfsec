@@ -2,19 +2,22 @@ package checks
 
 import (
 	"fmt"
+
 	"github.com/tfsec/tfsec/internal/app/tfsec/parser"
 	"github.com/tfsec/tfsec/internal/app/tfsec/scanner"
 	"github.com/zclconf/go-cty/cty"
 )
 
 const AWSOpenAllIngressNetworkACLRule scanner.RuleCode = "AWS050"
-const AWSOpenAllIngressNetworkACLRuleDescription scanner.RuleSummary = "An ingress Network ACL rule allows ALL ports from `/0`."
+const AWSOpenAllIngressNetworkACLRuleDescription scanner.RuleSummary = "An ingress Network ACL rule allows ALL ports from /0."
+const AWSOpenAllIngressNetworkACLRuleImpact = "All ports exposed for egressing data to the internet"
+const AWSOpenAllIngressNetworkACLRuleResolution = "Set a more restrictive cidr range"
 const AWSOpenAllIngressNetworkACLRuleExplanation = `
 Opening up ACLs to the public internet is potentially dangerous. You should restrict access to IP addresses or ranges that explicitly require it where possible, and ensure that you specify required ports.
 
 `
 const AWSOpenAllIngressNetworkACLRuleBadExample = `
-resource "aws_network_acl_rule" "my-rule" {
+resource "aws_network_acl_rule" "bad_example" {
   egress         = false
   protocol       = "all"
   rule_action    = "allow"
@@ -22,7 +25,7 @@ resource "aws_network_acl_rule" "my-rule" {
 }
 `
 const AWSOpenAllIngressNetworkACLRuleGoodExample = `
-resource "aws_network_acl_rule" "my-rule" {
+resource "aws_network_acl_rule" "good_example" {
   egress         = false
   protocol       = "tcp"
   from_port      = 22
@@ -37,6 +40,8 @@ func init() {
 		Code: AWSOpenAllIngressNetworkACLRule,
 		Documentation: scanner.CheckDocumentation{
 			Summary:     AWSOpenAllIngressNetworkACLRuleDescription,
+			Impact:      AWSOpenAllIngressNetworkACLRuleImpact,
+			Resolution:  AWSOpenAllIngressNetworkACLRuleResolution,
 			Explanation: AWSOpenAllIngressNetworkACLRuleExplanation,
 			BadExample:  AWSOpenAllIngressNetworkACLRuleBadExample,
 			GoodExample: AWSOpenAllIngressNetworkACLRuleGoodExample,
@@ -70,9 +75,10 @@ func init() {
 				if isOpenCidr(cidrBlockAttr, check.Provider) {
 					if protoAttr.Value().AsString() == "all" || protoAttr.Value().AsString() == "-1" {
 						return []scanner.Result{
-							check.NewResult(
+							check.NewResultWithValueAnnotation(
 								fmt.Sprintf("Resource '%s' defines a fully open ingress Network ACL rule with ALL ports open.", block.FullName()),
 								cidrBlockAttr.Range(),
+								cidrBlockAttr,
 								scanner.SeverityError,
 							),
 						}

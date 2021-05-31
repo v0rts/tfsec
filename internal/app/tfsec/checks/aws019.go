@@ -13,16 +13,18 @@ import (
 // AWSNoKMSAutoRotate See https://github.com/tfsec/tfsec#included-checks for check info
 const AWSNoKMSAutoRotate scanner.RuleCode = "AWS019"
 const AWSNoKMSAutoRotateDescription scanner.RuleSummary = "A KMS key is not configured to auto-rotate."
+const AWSNoKMSAutoRotateImpact = "Long life KMS keys increase the attack surface when compromised"
+const AWSNoKMSAutoRotateResolution = "Configure KMS key to auto rotate"
 const AWSNoKMSAutoRotateExplanation = `
 You should configure your KMS keys to auto rotate to maintain security and defend against compromise.
 `
 const AWSNoKMSAutoRotateBadExample = `
-resource "aws_kms_key" "kms_key" {
+resource "aws_kms_key" "bad_example" {
 	enable_key_rotation = false
 }
 `
 const AWSNoKMSAutoRotateGoodExample = `
-resource "aws_kms_key" "kms_key" {
+resource "aws_kms_key" "good_example" {
 	enable_key_rotation = true
 }
 `
@@ -32,15 +34,26 @@ func init() {
 		Code: AWSNoKMSAutoRotate,
 		Documentation: scanner.CheckDocumentation{
 			Summary:     AWSNoKMSAutoRotateDescription,
+			Impact:      AWSNoKMSAutoRotateImpact,
+			Resolution:  AWSNoKMSAutoRotateResolution,
 			Explanation: AWSNoKMSAutoRotateExplanation,
 			BadExample:  AWSNoKMSAutoRotateBadExample,
 			GoodExample: AWSNoKMSAutoRotateGoodExample,
-			Links:       []string{},
+			Links: []string{
+				"https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/kms_key#enable_key_rotation",
+				"https://docs.aws.amazon.com/kms/latest/developerguide/rotate-keys.html",
+			},
 		},
 		Provider:       scanner.AWSProvider,
 		RequiredTypes:  []string{"resource"},
 		RequiredLabels: []string{"aws_kms_key"},
 		CheckFunc: func(check *scanner.Check, block *parser.Block, _ *scanner.Context) []scanner.Result {
+			keyUsageAttr := block.GetAttribute("key_usage")
+
+			if keyUsageAttr != nil && keyUsageAttr.Equals("SIGN_VERIFY") {
+				return nil
+			}
+
 			keyRotationAttr := block.GetAttribute("enable_key_rotation")
 
 			if keyRotationAttr == nil {

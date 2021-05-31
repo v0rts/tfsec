@@ -4,9 +4,14 @@
 
 [![Travis Build Status](https://travis-ci.com/tfsec/tfsec.svg?branch=master)](https://travis-ci.com/tfsec/tfsec)
 [![GoReportCard](https://goreportcard.com/badge/github.com/tfsec/tfsec)](https://goreportcard.com/report/github.com/tfsec/tfsec)
-[![Github Release](https://img.shields.io/github/release/tfsec/tfsec.svg)](https://github.com/tfsec/tfsec/releases)
 [![GitHub All Releases](https://img.shields.io/github/downloads/tfsec/tfsec/total)](https://github.com/tfsec/tfsec/releases)
-[![Join Our Slack](https://img.shields.io/badge/Slack-Join-green)](https://join.slack.com/t/tfsec/shared_invite/zt-i0vo9rp2-tEizIaT1dS4Eu2hVIsvwDg)
+[![Join Our Slack](https://img.shields.io/badge/Slack-Join-green)](https://join.slack.com/t/tfsec/shared_invite/zt-o6c7mgoj-eJ1sLDv595sKiP5OPoHJww)
+
+[![Docker Build](https://img.shields.io/docker/v/tfsec/tfsec?label=docker)](https://hub.docker.com/r/tfsec/tfsec)
+[![Homebrew](https://img.shields.io/badge/dynamic/json.svg?url=https://formulae.brew.sh/api/formula/tfsec.json&query=$.versions.stable&label=homebrew)](https://formulae.brew.sh/formula/tfsec)
+[![Chocolatey](https://img.shields.io/chocolatey/v/tfsec)](https://chocolatey.org/packages/tfsec)
+[![AUR version](https://img.shields.io/aur/version/tfsec)](https://aur.archlinux.org/packages/tfsec)
+[![VScode Extension](https://img.shields.io/visual-studio-marketplace/v/tfsec.tfsec?label=vscode)](https://marketplace.visualstudio.com/items?itemName=tfsec.tfsec)
 
 tfsec uses static analysis of your terraform templates to spot potential
 security issues. Now with terraform v0.12+ support.
@@ -51,11 +56,24 @@ tfsec .
 
 As an alternative to installing and running tfsec on your system, you may run tfsec in a Docker container.
 
+There are a number of Docker options available
+
+| Image Name | Base | Comment |
+|------------|------|---------|
+|[tfsec/tfsec](https://hub.docker.com/repository/docker/tfsec/tfsec)|alpine|Normal tfsec image|
+|[tfsec/tfsec-alpine](https://hub.docker.com/repository/docker/tfsec/tfsec-alpine)|alpine|Exactly the same as tfsec/tfsec, but for those whole like to be explicit|
+|[tfsec/tfsec-ci](https://hub.docker.com/repository/docker/tfsec/tfsec-ci)|alpine|tfsec with no entrypoint - useful for CI builds where you want to override the command|
+|[tfsec/tfsec-scratch](https://hub.docker.com/repository/docker/tfsec/tfsec-scratch)|scratch|An image built on scratch - nothing frilly, just runs tfsec|
+
 To run:
 
 ```bash
-docker run --rm -it -v "$(pwd):/src" liamg/tfsec /src
+docker run --rm -it -v "$(pwd):/src" tfsec/tfsec /src
 ```
+
+## Use with Visual Studio Code
+
+A Visual Studio Code extension is being developed to integrate with tfsec results. More information can be found on the [tfsec Marketplace page](https://marketplace.visualstudio.com/items?itemName=tfsec.tfsec)
 
 ## Use as GitHub Action
 
@@ -99,6 +117,16 @@ resource "aws_security_group_rule" "my-rule" {
 If you're not sure which line to add the comment on, just check the
 tfsec output for the line number of the discovered problem.
 
+You can ignore multiple rules by concatenating the rules on a single line:
+
+```hcl
+#tfsec:ignore:AWS017 tfsec:ignore:AWS002
+resource "aws_s3_bucket" "my-bucket" {
+  bucket = "foobar"
+  acl    = "private"
+}
+```
+
 ## Disable checks
 
 You may wish to exclude some checks from running. If you'd like to do so, you can
@@ -140,7 +168,7 @@ to specify your desired format.
 ## Github Security Alerts
 If you want to integrate with Github Security alerts and include the output of your tfsec checks you can use the [tfsec-sarif-action](https://github.com/marketplace/actions/run-tfsec-with-sarif-upload) Github action to run the static analysis then upload the results to the security alerts tab.
 
-The alerts generated for [tfsec-example-project](https://gighub.com/tfsec/tfsec-github-project) look like this.
+The alerts generated for [tfsec-example-project](https://github.com/tfsec/tfsec-example-project) look like this.
 
 ![github security alerts](codescanning.png)
 

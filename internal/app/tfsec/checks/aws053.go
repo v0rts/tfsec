@@ -9,20 +9,22 @@ import (
 
 const AWSRDSPerformanceInsughtsEncryptionNotEnabled scanner.RuleCode = "AWS053"
 const AWSRDSPerformanceInsughtsEncryptionNotEnabledDescription scanner.RuleSummary = "Encryption for RDS Perfomance Insights should be enabled."
+const AWSRDSPerformanceInsughtsEncryptionNotEnabledImpact = "Data can be read from the RDS Performance Insights if it is compromised"
+const AWSRDSPerformanceInsughtsEncryptionNotEnabledResolution = "Enable encryption for RDS clusters and instances"
 const AWSRDSPerformanceInsughtsEncryptionNotEnabledExplanation = `
 When enabling Performance Insights on an RDS cluster or RDS DB Instance, and encryption key should be provided.
 
 The encryption key specified in ` + "`" + `performance_insights_kms_key_id` + "`" + ` references a KMS ARN
 `
 const AWSRDSPerformanceInsughtsEncryptionNotEnabledBadExample = `
-resource "aws_rds_cluster_instance" "foo" {
+resource "aws_rds_cluster_instance" "bad_example" {
   name                 = "bar"
   performance_insights_enabled = true
   performance_insights_kms_key_id = ""
 }
 `
 const AWSRDSPerformanceInsughtsEncryptionNotEnabledGoodExample = `
-resource "aws_rds_cluster_instance" "foo" {
+resource "aws_rds_cluster_instance" "good_example" {
   name                 = "bar"
   performance_insights_enabled = true
   performance_insights_kms_key_id = "arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab"
@@ -34,6 +36,8 @@ func init() {
 		Code: AWSRDSPerformanceInsughtsEncryptionNotEnabled,
 		Documentation: scanner.CheckDocumentation{
 			Summary:     AWSRDSPerformanceInsughtsEncryptionNotEnabledDescription,
+			Impact:      AWSRDSPerformanceInsughtsEncryptionNotEnabledImpact,
+			Resolution:  AWSRDSPerformanceInsughtsEncryptionNotEnabledResolution,
 			Explanation: AWSRDSPerformanceInsughtsEncryptionNotEnabledExplanation,
 			BadExample:  AWSRDSPerformanceInsughtsEncryptionNotEnabledBadExample,
 			GoodExample: AWSRDSPerformanceInsughtsEncryptionNotEnabledGoodExample,
@@ -49,11 +53,20 @@ func init() {
 		CheckFunc: func(check *scanner.Check, block *parser.Block, _ *scanner.Context) []scanner.Result {
 
 			if block.HasChild("performance_insights_enabled") && block.GetAttribute("performance_insights_enabled").IsTrue() {
-				if block.MissingChild("performance_insights_kms_key_id") || block.GetAttribute("performance_insights_kms_key_id").IsEmpty() {
+				if block.MissingChild("performance_insights_kms_key_id") {
 					return []scanner.Result{
 						check.NewResult(
 							fmt.Sprintf("Resource '%s' defines Performance Insights without encryption key specified.", block.FullName()),
 							block.Range(),
+							scanner.SeverityError,
+						),
+					}
+				} else if block.GetAttribute("performance_insights_kms_key_id").IsEmpty() {
+					return []scanner.Result{
+						check.NewResultWithValueAnnotation(
+							fmt.Sprintf("Resource '%s' defines Performance Insights without encryption key specified.", block.FullName()),
+							block.GetAttribute("performance_insights_kms_key_id").Range(),
+							block.GetAttribute("performance_insights_kms_key_id"),
 							scanner.SeverityError,
 						),
 					}

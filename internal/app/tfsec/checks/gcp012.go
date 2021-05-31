@@ -2,6 +2,7 @@ package checks
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/tfsec/tfsec/internal/app/tfsec/parser"
 	"github.com/tfsec/tfsec/internal/app/tfsec/scanner"
@@ -9,21 +10,23 @@ import (
 
 const GCPGKENodeServiceAccount scanner.RuleCode = "GCP012"
 const GCPGKENodeServiceAccountDescription scanner.RuleSummary = "Checks for service account defined for GKE nodes"
+const GCPGKENodeServiceAccountImpact = "Service accounts with wide permissions can increase the risk of compromise"
+const GCPGKENodeServiceAccountResolution = "Use limited permissions for service accounts to be effective"
 const GCPGKENodeServiceAccountExplanation = `
 You should create and use a minimally privileged service account to run your GKE cluster instead of using the Compute Engine default service account.
 `
 
 const GCPGKENodeServiceAccountBadExample = `
-resource "google_container_cluster" "my-cluster" {
-  node_config {
-  }
+resource "google_container_cluster" "bad_example" {
+	node_config {
+	}
 }
 `
 const GCPGKENodeServiceAccountGoodExample = `
-resource "google_container_cluster" "my-cluster" {
-  node_config {
-    service_account = "cool-service-account@example.com"
-  }
+resource "google_container_cluster" "good_example" {
+	node_config {
+		service_account = "cool-service-account@example.com"
+	}
 }
 `
 
@@ -32,6 +35,8 @@ func init() {
 		Code: GCPGKENodeServiceAccount,
 		Documentation: scanner.CheckDocumentation{
 			Summary:     GCPGKENodeServiceAccountDescription,
+			Impact:      GCPGKENodeServiceAccountImpact,
+			Resolution:  GCPGKENodeServiceAccountResolution,
 			Explanation: GCPGKENodeServiceAccountExplanation,
 			BadExample:  GCPGKENodeServiceAccountBadExample,
 			GoodExample: GCPGKENodeServiceAccountGoodExample,
@@ -43,6 +48,10 @@ func init() {
 		RequiredTypes:  []string{"resource"},
 		RequiredLabels: []string{"google_container_cluster", "google_container_node_pool"},
 		CheckFunc: func(check *scanner.Check, block *parser.Block, _ *scanner.Context) []scanner.Result {
+
+			if strings.HasPrefix(block.Label(), "google_container_cluster") && block.GetAttribute("remove_default_node_pool").IsTrue() {
+				return nil
+			}
 
 			if !block.HasBlock("node_config") {
 				return []scanner.Result{

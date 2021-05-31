@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"runtime/debug"
+	"strings"
 
 	internalDebug "github.com/tfsec/tfsec/internal/app/tfsec/debug"
 	"github.com/zclconf/go-cty/cty"
@@ -25,7 +26,12 @@ const (
 	AzureProvider   RuleProvider = "azure"
 	GCPProvider     RuleProvider = "google"
 	GeneralProvider RuleProvider = "general"
+	OracleProvider  RuleProvider = "oracle"
 )
+
+func RuleProviderToString(provider RuleProvider) string {
+	return strings.ToUpper(string(provider))
+}
 
 // Check is a targeted security test which can be applied to terraform templates. It includes the types to run on e.g.
 // "resource", and the labels to run on e.g. "aws_s3_bucket".
@@ -45,6 +51,12 @@ type CheckDocumentation struct {
 
 	// Explanation (markdown) contains reasoning for the check, details on it's value, and remediation info
 	Explanation string
+
+	// Impact contains a brief summary of the impact of failing the check
+	Impact string
+
+	// Resolution contains a brief summary of the resolution for the failing check
+	Resolution string
 
 	// BadExample (hcl) contains Terraform code which would cause the check to fail
 	BadExample string
@@ -66,8 +78,16 @@ func (check *Check) Run(block *parser.Block, context *Context) []Result {
 		}
 	}()
 	results := check.CheckFunc(check, block, context)
-	for i := range results { // supplement results with links to documentation site
-		results[i].Link = fmt.Sprintf("https://tfsec.dev/docs/%s/%s/", check.Provider, check.Code)
+	if check.Provider == "custom" {
+		for i := range results { // populate custom check results with relatedLinks
+			if len(check.Documentation.Links) > 0 {
+				results[i].Link = fmt.Sprintf("See the following link(s) for more information:\n\n   %s", strings.Join(check.Documentation.Links, "\n   "))
+			}
+		}
+	} else {
+		for i := range results { // supplement results with links to documentation site
+			results[i].Link = fmt.Sprintf("See https://tfsec.dev/docs/%s/%s/ for more information.", check.Provider, check.Code)
+		}
 	}
 	return results
 }
@@ -95,7 +115,7 @@ func (check *Check) IsRequiredForBlock(block *parser.Block) bool {
 	if len(check.RequiredLabels) > 0 {
 		var found bool
 		for _, requiredLabel := range check.RequiredLabels {
-			if requiredLabel == "*" || (len(block.Labels()) > 0 && block.Labels()[0] == requiredLabel) {
+			if requiredLabel == "*" || (len(block.Labels()) > 0 && wildcardMatch(requiredLabel, block.TypeLabel())) {
 				found = true
 				break
 			}
@@ -108,16 +128,53 @@ func (check *Check) IsRequiredForBlock(block *parser.Block) bool {
 	return true
 }
 
+func wildcardMatch(pattern string, subject string) bool {
+	if pattern == "" {
+		return false
+	}
+	parts := strings.Split(pattern, "*")
+	var lastIndex int
+	for i, part := range parts {
+		if part == "" {
+			continue
+		}
+		if i == 0 {
+			if !strings.HasPrefix(subject, part) {
+				return false
+			}
+		}
+		if i == len(parts)-1 {
+			if !strings.HasSuffix(subject, part) {
+				return false
+			}
+		}
+		newIndex := strings.Index(subject, part)
+		if newIndex < lastIndex {
+			return false
+		}
+		lastIndex = newIndex
+	}
+	return true
+}
+
 // NewResult creates a new Result, containing the given description and range
 func (check *Check) NewResult(description string, r parser.Range, severity Severity) Result {
 	return Result{
 		RuleID:          check.Code,
 		RuleDescription: check.Documentation.Summary,
+		Impact:          check.Documentation.Impact,
+		Resolution:      check.Documentation.Resolution,
 		RuleProvider:    check.Provider,
 		Description:     description,
 		Range:           r,
 		Severity:        severity,
 	}
+}
+
+func (check *Check) NewPassingResult(r parser.Range) Result {
+	var res = check.NewResult(string(check.Documentation.Summary), r, SeverityInfo)
+	res.Passed = true
+	return res
 }
 
 func (check *Check) NewResultWithValueAnnotation(description string, r parser.Range, attr *parser.Attribute, severity Severity) Result {

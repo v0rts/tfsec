@@ -1,8 +1,9 @@
 package parser
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_AttributeStartsWith(t *testing.T) {
@@ -59,7 +60,7 @@ resource "aws_s3_bucket" "my-bucket" {
 					t.Fail()
 				}
 				attr := block.GetAttribute(test.checkAttribute)
-				assert.Equal(t, attr.StartsWith(test.checkValue), test.expectedResult)
+				assert.Equal(t, test.expectedResult, attr.StartsWith(test.checkValue))
 			}
 		})
 	}
@@ -119,7 +120,7 @@ resource "aws_s3_bucket" "my-bucket" {
 					t.Fail()
 				}
 				attr := block.GetAttribute(test.checkAttribute)
-				assert.Equal(t, attr.EndsWith(test.checkValue), test.expectedResult)
+				assert.Equal(t, test.expectedResult, attr.EndsWith(test.checkValue))
 			}
 		})
 	}
@@ -132,6 +133,7 @@ func Test_AttributeContains(t *testing.T) {
 		checkAttribute string
 		checkValue     string
 		expectedResult bool
+		ignoreCase     bool
 	}{
 		{
 			name: "bucket name contains Name",
@@ -178,6 +180,90 @@ resource "aws_security_group" "my-security_group" {
 			checkValue:     "172.0.0.0/8",
 			expectedResult: true,
 		},
+		{
+			name: "autoscaling group has propagated key defined 1st tag is present",
+			source: `
+resource "aws_autoscaling_group" "my-aws_autoscaling_group" {		
+	tags = [
+		{
+			"key"                 = "Name"
+			"propagate_at_launch" = "true"
+			"value"               = "couchbase-seb-develop-dev"
+		},
+		{
+			"key"                 = "app"
+			"propagate_at_launch" = "true"
+			"value"               = "myapp"
+		}
+		]
+}`,
+			checkAttribute: "tags",
+			checkValue:     "Name",
+			expectedResult: true,
+		},
+		{
+			name: "autoscaling group has propagated key defined 2nd tag is present",
+			source: `
+resource "aws_autoscaling_group" "my-aws_autoscaling_group" {		
+	tags = [
+		{
+			"key"                 = "Name"
+			"propagate_at_launch" = "true"
+			"value"               = "couchbase-seb-develop-dev"
+		},
+		{
+			"key"                 = "app"
+			"propagate_at_launch" = "true"
+			"value"               = "myapp"
+		}
+		]
+}`,
+			checkAttribute: "tags",
+			checkValue:     "app",
+			expectedResult: true,
+		},
+		{
+			name: "autoscaling group has propagated key defined and tag is not present",
+			source: `
+resource "aws_autoscaling_group" "my-aws_autoscaling_group" {		
+	tags = [
+		{
+			"key"                 = "Name"
+			"propagate_at_launch" = "true"
+			"value"               = "couchbase-seb-develop-dev"
+		},
+		{
+			"key"                 = "app"
+			"propagate_at_launch" = "true"
+			"value"               = "myapp"
+		}
+		]
+}`,
+			checkAttribute: "tags",
+			checkValue:     "NotThere",
+			expectedResult: false,
+		},
+		{
+			name: "contains array of strings ignores case",
+			source: `
+resource "aws_security_group" "my-security_group" {
+	cidr_block = ["Foo", "Bar" ] 
+}`,
+			checkAttribute: "cidr_block",
+			checkValue:     "foo",
+			expectedResult: true,
+			ignoreCase:     true,
+		},
+		{
+			name: "contains array of strings ignores case",
+			source: `
+resource "aws_security_group" "my-security_group" {
+	cidr_block = ["Foo", "Bar" ] 
+}`,
+			checkAttribute: "cidr_block",
+			checkValue:     "foo",
+			expectedResult: false,
+		},
 	}
 
 	for _, test := range tests {
@@ -188,7 +274,11 @@ resource "aws_security_group" "my-security_group" {
 					t.Fail()
 				}
 				attr := block.GetAttribute(test.checkAttribute)
-				assert.Equal(t, attr.Contains(test.checkValue), test.expectedResult)
+				if test.ignoreCase {
+					assert.Equal(t, test.expectedResult, attr.Contains(test.checkValue, IgnoreCase))
+				} else {
+					assert.Equal(t, test.expectedResult, attr.Contains(test.checkValue))
+				}
 			}
 		})
 	}
@@ -250,7 +340,7 @@ resource "aws_security_group" "my-security_group" {
 					t.Fail()
 				}
 				attr := block.GetAttribute(test.checkAttribute)
-				assert.Equal(t, attr.IsAny(test.checkValue...), test.expectedResult)
+				assert.Equal(t, test.expectedResult, attr.IsAny(test.checkValue...))
 			}
 		})
 	}
@@ -306,7 +396,7 @@ resource "aws_security_group" "my-security_group" {
 					t.Fail()
 				}
 				attr := block.GetAttribute(test.checkAttribute)
-				assert.Equal(t, attr.IsNone(test.checkValue...), test.expectedResult)
+				assert.Equal(t, test.expectedResult, attr.IsNone(test.checkValue...))
 			}
 		})
 	}
@@ -416,7 +506,191 @@ resource "aws_security_group_rule" "example" {
 					t.Fail()
 				}
 				attr := block.GetAttribute(test.checkAttribute)
-				assert.Equal(t, attr.IsEmpty(), test.expectedResult)
+				assert.Equal(t, test.expectedResult, attr.IsEmpty())
+			}
+		})
+	}
+}
+
+func Test_AttributeIsLessThan(t *testing.T) {
+	var tests = []struct {
+		name           string
+		source         string
+		checkAttribute string
+		checkValue     int
+		expectedResult bool
+	}{
+		{
+			name: "check attribute is less than check value",
+			source: `
+resource "numerical_something" "my-bucket" {
+	value = 100
+}`,
+			checkAttribute: "value",
+			checkValue:     200,
+			expectedResult: true,
+		},
+		{
+			name: "check attribute is not less than check value",
+			source: `
+resource "numerical_something" "my-bucket" {
+	value = 100
+}`,
+			checkAttribute: "value",
+			checkValue:     50,
+			expectedResult: false,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			blocks := createBlocksFromSource(test.source)
+			for _, block := range blocks {
+				if !block.HasChild(test.checkAttribute) {
+					t.Fail()
+				}
+				attr := block.GetAttribute(test.checkAttribute)
+				assert.Equal(t, test.expectedResult, attr.LessThan(test.checkValue))
+			}
+		})
+	}
+}
+
+func Test_AttributeIsLessThanOrEqual(t *testing.T) {
+	var tests = []struct {
+		name           string
+		source         string
+		checkAttribute string
+		checkValue     int
+		expectedResult bool
+	}{
+		{
+			name: "check attribute is less than or equal check value",
+			source: `
+resource "numerical_something" "my-bucket" {
+	value = 100
+}`,
+			checkAttribute: "value",
+			checkValue:     100,
+			expectedResult: true,
+		},
+		{
+			name: "check attribute is not less than check value",
+			source: `
+resource "numerical_something" "my-bucket" {
+	value = 100
+}`,
+			checkAttribute: "value",
+			checkValue:     50,
+			expectedResult: false,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			blocks := createBlocksFromSource(test.source)
+			for _, block := range blocks {
+				if !block.HasChild(test.checkAttribute) {
+					t.Fail()
+				}
+				attr := block.GetAttribute(test.checkAttribute)
+				assert.Equal(t, test.expectedResult, attr.LessThanOrEqualTo(test.checkValue))
+			}
+		})
+	}
+}
+
+func Test_AttributeIsTrue(t *testing.T) {
+	var tests = []struct {
+		name           string
+		source         string
+		checkAttribute string
+		expectedResult bool
+	}{
+		{
+			name: "check attribute is true",
+			source: `
+resource "boolean_something" "my-something" {
+	value = true
+}`,
+			checkAttribute: "value",
+			expectedResult: true,
+		},
+		{
+			name: "check attribute as string is true",
+			source: `
+resource "boolean_something" "my-something" {
+	value = "true"
+}`,
+			checkAttribute: "value",
+			expectedResult: true,
+		},
+		{
+			name: "check attribute as string is false",
+			source: `
+resource "boolean_something" "my-something" {
+	value = "true"
+}`,
+			checkAttribute: "value",
+			expectedResult: true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			blocks := createBlocksFromSource(test.source)
+			for _, block := range blocks {
+				if !block.HasChild(test.checkAttribute) {
+					t.Fail()
+				}
+				attr := block.GetAttribute(test.checkAttribute)
+				assert.Equal(t, test.expectedResult, attr.IsTrue())
+			}
+		})
+	}
+}
+
+func Test_AttributeIsFalse(t *testing.T) {
+	var tests = []struct {
+		name           string
+		source         string
+		checkAttribute string
+		expectedResult bool
+	}{
+		{
+			name: "check attribute is false",
+			source: `
+resource "boolean_something" "my-something" {
+	value = false
+}`,
+			checkAttribute: "value",
+			expectedResult: true,
+		},
+		{
+			name: "check attribute as string is false",
+			source: `
+resource "boolean_something" "my-something" {
+	value = "false"
+}`,
+			checkAttribute: "value",
+			expectedResult: true,
+		},
+		{
+			name: "check attribute true",
+			source: `
+resource "boolean_something" "my-something" {
+	value = "true"
+}`,
+			checkAttribute: "value",
+			expectedResult: false,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			blocks := createBlocksFromSource(test.source)
+			for _, block := range blocks {
+				if !block.HasChild(test.checkAttribute) {
+					t.Fail()
+				}
+				attr := block.GetAttribute(test.checkAttribute)
+				assert.Equal(t, test.expectedResult, attr.IsFalse())
 			}
 		})
 	}

@@ -13,6 +13,8 @@ import (
 // GkeLegacyMetadataEndpoints See https://github.com/tfsec/tfsec#included-checks for check info
 const GkeLegacyMetadataEndpoints scanner.RuleCode = "GCP007"
 const GkeLegacyMetadataEndpointsDescription scanner.RuleSummary = "Legacy metadata endpoints enabled."
+const GkeLegacyMetadataEndpointsImpact = "Legacy metadata endpoints don't require metadata headers"
+const GkeLegacyMetadataEndpointsResolution = "Disable legacy metadata endpoints"
 const GkeLegacyMetadataEndpointsExplanation = `
 The Compute Engine instance metadata server exposes legacy v0.1 and v1beta1 endpoints, which do not enforce metadata query headers. 
 
@@ -23,13 +25,13 @@ Unless specifically required, we recommend you disable these legacy APIs.
 When setting the <code>metadata</code> block, the default value for <code>disable-legacy-endpoints</code> is set to true, they should not be explicitly enabled.
 `
 const GkeLegacyMetadataEndpointsBadExample = `
-resource "google_container_cluster" "gke" {
+resource "google_container_cluster" "bad_example" {
 	metadata {
     disable-legacy-endpoints = false
   }
 }`
 const GkeLegacyMetadataEndpointsGoodExample = `
-resource "google_container_cluster" "gke" {
+resource "google_container_cluster" "good_example" {
 	metadata {
     disable-legacy-endpoints = true
   }
@@ -40,6 +42,8 @@ func init() {
 		Code: GkeLegacyMetadataEndpoints,
 		Documentation: scanner.CheckDocumentation{
 			Summary:     GkeLegacyMetadataEndpointsDescription,
+			Impact:      GkeLegacyMetadataEndpointsImpact,
+			Resolution:  GkeLegacyMetadataEndpointsResolution,
 			Explanation: GkeLegacyMetadataEndpointsExplanation,
 			BadExample:  GkeLegacyMetadataEndpointsBadExample,
 			GoodExample: GkeLegacyMetadataEndpointsGoodExample,

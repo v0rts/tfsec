@@ -26,19 +26,6 @@ func (blocks Blocks) OfType(t string) Blocks {
 	return results
 }
 
-func (blocks Blocks) RemoveDuplicates() Blocks {
-	filtered := make(map[string]Block)
-	for _, block := range blocks {
-		filtered[block.identifier()] = *block
-	}
-	var blockSet Blocks
-	for key := range filtered {
-		block := filtered[key]
-		blockSet = append(blockSet, &block)
-	}
-	return blockSet
-}
-
 func NewBlock(hclBlock *hcl.Block, ctx *hcl.EvalContext, moduleBlock *Block) *Block {
 	return &Block{
 		ctx:         ctx,
@@ -71,6 +58,16 @@ func (block *Block) Range() Range {
 	}
 }
 
+func (block *Block) GetFirstMatchingBlock(names ...string) *Block {
+	for _, name := range names {
+		b := block.GetBlock(name)
+		if b != nil {
+			return b
+		}
+	}
+	return nil
+}
+
 func (block *Block) GetBlock(name string) *Block {
 	if block == nil || block.hclBlock == nil {
 		return nil
@@ -88,6 +85,17 @@ func (block *Block) GetBlock(name string) *Block {
 		}
 	}
 	return nil
+}
+
+func (block *Block) AllBlocks() Blocks {
+	if block == nil || block.hclBlock == nil {
+		return nil
+	}
+	var results []*Block
+	for _, child := range block.body().Blocks {
+		results = append(results, NewBlock(child.AsHCLBlock(), block.ctx, block.moduleBlock))
+	}
+	return results
 }
 
 func (block *Block) GetBlocks(name string) Blocks {
@@ -178,6 +186,20 @@ func (block *Block) FullName() string {
 	return block.LocalName()
 }
 
+func (block *Block) TypeLabel() string {
+	if len(block.Labels()) > 0 {
+		return block.Labels()[0]
+	}
+	return ""
+}
+
+func (block *Block) NameLabel() string {
+	if len(block.Labels()) > 1 {
+		return block.Labels()[1]
+	}
+	return ""
+}
+
 func (block *Block) HasChild(childElement string) bool {
 	return block.GetAttribute(childElement) != nil || block.GetBlock(childElement) != nil
 }
@@ -192,7 +214,7 @@ func (block *Block) InModule() bool {
 
 func (block *Block) identifier() string {
 	// TODO use FullName() here instead? these should be unique
-	return fmt.Sprintf("%s:%s:%s", block.Range().Filename, block.Type(), strings.Join(block.Labels(), ":"))
+	return fmt.Sprintf("%s:%s", block.Range().Filename, block.FullName())
 }
 
 func (block *Block) Label() string {
@@ -201,4 +223,12 @@ func (block *Block) Label() string {
 
 func (block *Block) HasBlock(childElement string) bool {
 	return block.GetBlock(childElement) != nil
+}
+
+func (block *Block) IsResourceType(resourceType string) bool {
+	return block.TypeLabel() == resourceType
+}
+
+func (block *Block) IsEmpty() bool {
+	return len(block.AllBlocks()) == 0 && len(block.GetAttributes()) == 0
 }
